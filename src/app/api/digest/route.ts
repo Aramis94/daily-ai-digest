@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'crypto'
 import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { Resend } from 'resend'
@@ -10,24 +11,36 @@ const groq = new OpenAI({
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
-export async function POST(request: Request) {
+function isCron(request: Request) {
+  const secret = process.env.CRON_SECRET
+  const header = request.headers.get('authorization') ?? ''
+  if (!secret || !header.startsWith('Bearer ')) return false
+  const token = header.slice('Bearer '.length)
+  const a = Buffer.from(token)
+  const b = Buffer.from(secret)
+  if (a.length !== b.length) return false
+  return timingSafeEqual(a, b)
+}
+
+async function handle(request: Request) {
   const supabase = await createClient()
 
-  let body: any = {}
-  try {
-    body = await request.json()
-  } catch {
-    // Cron
-  }
+  let targetUserId: string | null = null
 
-  const specificUserId = body.userId
+  if (!isCron(request)) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    targetUserId = user.id
+  }
 
   let query = supabase
     .from('profiles')
     .select('id, language, topics, email_notifications')
 
-  if (specificUserId) {
-    query = query.eq('id', specificUserId)
+  if (targetUserId) {
+    query = query.eq('id', targetUserId)
   }
 
   const { data: profiles, error } = await query
@@ -40,8 +53,8 @@ export async function POST(request: Request) {
 
   for (const profile of profiles) {
     const topics = profile.topics?.join(', ') || 'tech, AI'
-    const languageName = profile.language === 'hungarian' ? 'Hungarian' : 
-                         profile.language === 'german' ? 'German' : 
+    const languageName = profile.language === 'hungarian' ? 'Hungarian' :
+                         profile.language === 'german' ? 'German' :
                          profile.language === 'spanish' ? 'Spanish' : 'English'
 
     const newsPrompt = `Give me 3 short, interesting news summaries about: ${topics}. 
@@ -64,7 +77,7 @@ export async function POST(request: Request) {
       })
 
       if (profile.email_notifications) {
-        const titles = news.items?.map((item: any) => `<li>${item.title}</li>`).join('') || '<li>Nincs hír</li>'
+        const titles = news.items?.map((item: { title: string }) => `<li>${item.title}</li>`).join('') || '<li>Nincs hír</li>'
 
         await resend.emails.send({
           from: 'Daily Digest <onboarding@resend.dev>',
@@ -92,10 +105,19 @@ export async function POST(request: Request) {
       }
 
       results.push({ userId: profile.id, status: 'ok' })
-    } catch (err: any) {
-      results.push({ userId: profile.id, status: 'error', message: err.message })
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      results.push({ userId: profile.id, status: 'error', message })
     }
   }
 
   return NextResponse.json({ results })
+}
+
+export async function POST(request: Request) {
+  return handle(request)
+}
+
+export async function GET(request: Request) {
+  return handle(request)
 }
