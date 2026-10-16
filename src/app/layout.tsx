@@ -1,3 +1,12 @@
+import type { Metadata } from 'next'
+import './globals.css'
+import Navbar from '@/components/Navbar'
+
+export const metadata: Metadata = {
+  title: 'Daily AI Digest',
+  description: 'Napi hírek és nyelvtanulás',
+}
+
 export default function RootLayout({
   children,
 }: {
@@ -5,7 +14,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="hu">
-      <body>{children}</body>
+      <body>
+        <Navbar />
+        {children}
+      </body>
     </html>
   )
 }
