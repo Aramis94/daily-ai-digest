@@ -1,6 +1,17 @@
 import type { Metadata } from 'next'
+import { Fraunces, Outfit } from 'next/font/google'
 import './globals.css'
 import Navbar from '@/components/Navbar'
+
+const outfit = Outfit({
+  subsets: ['latin', 'latin-ext'],
+  variable: '--font-outfit',
+})
+
+const fraunces = Fraunces({
+  subsets: ['latin', 'latin-ext'],
+  variable: '--font-fraunces',
+})
 
 export const metadata: Metadata = {
   title: 'Daily AI Digest',
@@ -13,12 +24,10 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="hu">
-            <body>
+    <html lang="hu" className={`${outfit.variable} ${fraunces.variable}`}>
+      <body className="min-h-screen antialiased">
         <Navbar />
-        <main className="pt-6">
-          {children}
-        </main>
+        <main>{children}</main>
       </body>
     </html>
   )

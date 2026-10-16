@@ -41,7 +41,7 @@ export default function SettingsPage() {
     loadProfile()
   }, [supabase, router])
 
-    const handleSave = async () => {
+  const handleSave = async () => {
     setSaving(true)
     setMessage('')
     const { data: { user } } = await supabase.auth.getUser()
@@ -49,21 +49,20 @@ export default function SettingsPage() {
 
     const topicsArray = topics
       .split(',')
-      .map(t => t.trim())
-      .filter(t => t.length > 0)
+      .map(topic => topic.trim())
+      .filter(topic => topic.length > 0)
       .slice(0, 12)
 
     const { error } = await supabase
       .from('profiles')
-      .update({ 
-        language, 
+      .update({
+        language,
         topics: topicsArray,
-        email_notifications: emailNotifications 
+        email_notifications: emailNotifications
       })
       .eq('id', user.id)
 
     if (!error) {
-      // Újrageneráljuk a legutóbbi digestet az új nyelven
       await fetch('/api/digest', { method: 'POST' })
       window.location.reload()
     } else {
@@ -72,57 +71,61 @@ export default function SettingsPage() {
     setSaving(false)
   }
 
-  if (loading) return <p className="p-8">{t.loading}</p>
+  if (loading) {
+    return <p className="mx-auto max-w-lg px-5 py-16 text-sm text-[#8a8176]">{t.loading}</p>
+  }
 
   return (
-    <div className="p-8 max-w-md mx-auto">
-      <h1 className="text-2xl font-bold mb-6">{t.settings}</h1>
+    <div className="mx-auto max-w-lg px-5 py-10 sm:px-8">
+      <h1 className="font-display text-4xl tracking-tight">{t.settings}</h1>
 
-      <div className="mb-4">
-        <label className="block text-sm font-medium mb-1">{t.appLanguage}</label>
-        <select
-          value={language}
-          onChange={(e) => setLanguage(e.target.value)}
-          className="border p-2 w-full rounded"
-        >
-          <option value="hungarian">Magyar</option>
-          <option value="english">English</option>
-          <option value="german">Deutsch</option>
-          <option value="spanish">Español</option>
-        </select>
-      </div>
+      <div className="mt-8 space-y-6 rounded-3xl border border-[#e4d9c8] bg-[#fffaf3] p-6 sm:p-8">
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-[#5e574e]">{t.appLanguage}</label>
+          <select
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
+            className="w-full rounded-xl border border-[#e4d9c8] bg-white px-3 py-2.5"
+          >
+            <option value="hungarian">Magyar</option>
+            <option value="english">English</option>
+            <option value="german">Deutsch</option>
+            <option value="spanish">Español</option>
+          </select>
+        </div>
 
-      <div className="mb-6">
-        <label className="block text-sm font-medium mb-1">{t.topics}</label>
-        <input
-          type="text"
-          value={topics}
-          onChange={(e) => setTopics(e.target.value)}
-          placeholder="AI, tech, science, sport"
-          className="border p-2 w-full rounded"
-        />
-      </div>
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-[#5e574e]">{t.topics}</label>
+          <input
+            type="text"
+            value={topics}
+            onChange={(e) => setTopics(e.target.value)}
+            placeholder="AI, tech, science, sport"
+            className="w-full rounded-xl border border-[#e4d9c8] bg-white px-3 py-2.5"
+          />
+        </div>
 
-      <div className="mb-6">
-        <label className="flex items-center gap-2">
+        <label className="flex items-start gap-3 rounded-2xl bg-[#f3eee6] px-4 py-3">
           <input
             type="checkbox"
             checked={emailNotifications}
             onChange={(e) => setEmailNotifications(e.target.checked)}
+            className="mt-1"
           />
-          <span>{t.emailNotifications}</span>
+          <span className="text-sm leading-relaxed">{t.emailNotifications}</span>
         </label>
+
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving}
+          className="rounded-full bg-[#1c1915] px-5 py-2.5 text-sm font-medium text-[#f6f1e8] disabled:opacity-50"
+        >
+          {saving ? t.saving : t.save}
+        </button>
+
+        {message && <p className="text-sm text-[#8a4b32]">{message}</p>}
       </div>
-
-      <button
-        onClick={handleSave}
-        disabled={saving}
-        className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50"
-      >
-        {saving ? t.saving : t.save}
-      </button>
-
-      {message && <p className="mt-4 text-sm">{message}</p>}
     </div>
   )
 }

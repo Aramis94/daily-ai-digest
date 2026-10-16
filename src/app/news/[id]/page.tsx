@@ -62,7 +62,9 @@ function NewsDetailContent() {
     load()
   }, [title, summary])
 
-  if (loading) return <p className="p-8">{t.detailLoading}</p>
+  if (loading) {
+    return <p className="mx-auto max-w-3xl px-5 py-16 text-sm text-[#8a8176]">{t.detailLoading}</p>
+  }
 
   const sources = (detail?.sources || [])
     .map((source: { name?: string; url?: string }) => {
@@ -73,29 +75,39 @@ function NewsDetailContent() {
     .filter(Boolean) as { name: string; url: string }[]
 
   return (
-    <div className="p-8 max-w-3xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">{title}</h1>
+    <article className="mx-auto max-w-3xl px-5 py-10 sm:px-8">
+      <Link href="/" className="text-sm font-medium text-[#0f6e6b] hover:underline">
+        ← {t.backHome}
+      </Link>
+
+      <h1 className="font-display mt-5 text-4xl leading-tight tracking-tight sm:text-5xl">
+        {title}
+      </h1>
+
+      {summary && (
+        <p className="mt-5 text-lg leading-relaxed text-[#5e574e]">{summary}</p>
+      )}
 
       {failed ? (
-        <p className="mb-8 text-gray-600">{t.detailFailed}</p>
+        <p className="mt-8 text-[#6b645b]">{t.detailFailed}</p>
       ) : (
-        <div className="prose max-w-none mb-8">
-          <p className="text-lg leading-relaxed whitespace-pre-wrap">{detail?.detailed}</p>
-        </div>
+        <p className="mt-8 whitespace-pre-wrap text-lg leading-8 text-[#1c1915]">
+          {detail?.detailed}
+        </p>
       )}
 
       {sources.length > 0 && (
-        <div className="bg-gray-50 p-6 rounded-lg mb-8">
-          <h2 className="font-semibold mb-1">{t.sources}</h2>
-          <p className="text-sm text-gray-500 mb-3">{t.sourcesNote}</p>
-          <ul className="space-y-2">
+        <div className="mt-10 rounded-3xl border border-[#e4d9c8] bg-[#fffaf3] p-6">
+          <h2 className="font-display text-xl">{t.sources}</h2>
+          <p className="mt-1 text-sm text-[#8a8176]">{t.sourcesNote}</p>
+          <ul className="mt-4 flex flex-wrap gap-2">
             {sources.map((source) => (
               <li key={source.url}>
                 <a
                   href={source.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline"
+                  className="inline-block rounded-full border border-[#e4d9c8] bg-white px-3 py-1.5 text-sm text-[#0f6e6b] hover:border-[#0f6e6b]"
                 >
                   {source.name}
                 </a>
@@ -104,14 +116,7 @@ function NewsDetailContent() {
           </ul>
         </div>
       )}
-
-      <Link
-        href="/"
-        className="inline-block bg-gray-200 px-4 py-2 rounded hover:bg-gray-300"
-      >
-        {t.backHome}
-      </Link>
-    </div>
+    </article>
   )
 }
 

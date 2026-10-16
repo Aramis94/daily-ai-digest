@@ -49,41 +49,45 @@ export default function HistoryPage() {
     load()
   }, [supabase, router])
 
-  if (loading) return <p className="p-8">{t.loading}</p>
+  if (loading) {
+    return <p className="mx-auto max-w-3xl px-5 py-16 text-sm text-[#8a8176]">{t.loading}</p>
+  }
 
   return (
-    <div className="p-8 max-w-3xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">{t.history}</h1>
+    <div className="mx-auto max-w-3xl px-5 py-10 sm:px-8">
+      <h1 className="font-display text-4xl tracking-tight">{t.history}</h1>
 
-      {digests.length === 0 && <p>{t.historyEmpty}</p>}
+      {digests.length === 0 && (
+        <p className="mt-8 text-[#6b645b]">{t.historyEmpty}</p>
+      )}
 
-      <div className="space-y-8">
+      <div className="mt-8 space-y-5">
         {digests.map((digest) => (
-          <div key={digest.id} className="border rounded-lg p-6 bg-white shadow-sm">
-            <p className="text-sm text-gray-500 mb-4">
+          <article key={digest.id} className="rounded-3xl border border-[#e4d9c8] bg-[#fffaf3] p-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8a6a45]">
               {new Date(digest.created_at).toLocaleString(locales[appLanguage] || "hu-HU")}
             </p>
 
-            <h2 className="font-semibold mb-2">{t.news}</h2>
-            <div className="space-y-3 mb-4">
+            <h2 className="font-display mt-4 text-xl">{t.news}</h2>
+            <div className="mt-3 space-y-4">
               {digest.news?.items?.map((item: any, i: number) => (
                 <div key={i}>
                   <p className="font-medium">{item.title}</p>
-                  <p className="text-sm text-gray-700">{item.summary}</p>
+                  <p className="mt-1 text-sm leading-relaxed text-[#5e574e]">{item.summary}</p>
                 </div>
               ))}
             </div>
 
-            <h2 className="font-semibold mb-2">{t.lessonHeading}</h2>
+            <h2 className="font-display mt-6 text-xl">{t.lessonHeading}</h2>
             {digest.language_lesson?.word ? (
-              <div className="bg-green-50 p-3 rounded">
-                <p className="font-bold">{digest.language_lesson.word}</p>
-                <p className="italic text-sm">{digest.language_lesson.example}</p>
+              <div className="mt-3 rounded-2xl bg-[#f3faf8] px-4 py-3">
+                <p className="font-display text-2xl text-[#134e4a]">{digest.language_lesson.word}</p>
+                <p className="mt-1 text-sm italic text-[#3f3a34]">{digest.language_lesson.example}</p>
               </div>
             ) : (
-              <p className="text-sm text-gray-500">{t.noLesson}</p>
+              <p className="mt-2 text-sm text-[#8a8176]">{t.noLesson}</p>
             )}
-          </div>
+          </article>
         ))}
       </div>
     </div>

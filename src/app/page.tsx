@@ -5,15 +5,42 @@ import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { translations } from '@/lib/translations'
 
+const locales: Record<string, string> = {
+  hungarian: 'hu-HU',
+  english: 'en-US',
+  german: 'de-DE',
+  spanish: 'es-ES',
+}
+
+const languages = [
+  ['hungarian', 'Magyar'],
+  ['english', 'Angol'],
+  ['german', 'Német'],
+  ['spanish', 'Spanyol'],
+  ['french', 'Francia'],
+  ['italian', 'Olasz'],
+  ['japanese', 'Japán'],
+] as const
+
+const levels = ['A1', 'A2', 'B1', 'B2', 'C1']
+
 export default function Home() {
   const [result, setResult] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [generating, setGenerating] = useState(false)
+  const [lessonLoading, setLessonLoading] = useState(false)
   const [appLanguage, setAppLanguage] = useState('hungarian')
   const [learningLanguage, setLearningLanguage] = useState('hungarian')
   const [languageLevel, setLanguageLevel] = useState('A2')
   const supabase = createClient()
 
   const t = translations[appLanguage as keyof typeof translations] || translations.hungarian
+  const today = new Date().toLocaleDateString(locales[appLanguage] || 'hu-HU', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
 
   useEffect(() => {
     const loadLatest = async () => {
@@ -68,7 +95,7 @@ export default function Home() {
   }
 
   const generate = async () => {
-    setLoading(true)
+    setGenerating(true)
     const { data: { user } } = await supabase.auth.getUser()
 
     await fetch('/api/digest', { method: 'POST' })
@@ -87,108 +114,148 @@ export default function Home() {
         lesson: data.language_lesson
       })
     }
-    setLoading(false)
+    setGenerating(false)
   }
 
   const generateLesson = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
+    setLessonLoading(true)
     const res = await fetch('/api/lesson', { method: 'POST' })
-    if (!res.ok) return
-    const data = await res.json()
-    if (!data.lesson) return
-
-    setResult((prev: any) => ({
-      ...prev,
-      lesson: data.lesson
-    }))
+    if (res.ok) {
+      const data = await res.json()
+      if (data.lesson) {
+        setResult((prev: any) => ({
+          ...prev,
+          lesson: data.lesson
+        }))
+      }
+    }
+    setLessonLoading(false)
   }
 
-  if (loading) return <p className="p-8">{t.loading}</p>
+  const fieldClass =
+    'rounded-xl border border-[#e4d9c8] bg-white px-3 py-2 text-sm text-[#1c1915]'
+
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-3xl px-5 py-16 sm:px-8">
+        <p className="text-sm tracking-wide text-[#8a8176]">{t.loading}</p>
+      </div>
+    )
+  }
 
   return (
-    <div className="p-8 max-w-3xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">{t.appName}</h1>
-
-      <button
-        onClick={generate}
-        disabled={loading}
-        className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium disabled:opacity-50"
-      >
-        {loading ? t.generating : t.generate}
-      </button>
+    <div className="mx-auto max-w-3xl px-5 py-8 sm:px-8 sm:py-12">
+      <header className="flex flex-col gap-6 border-b border-[#e4d9c8] pb-8 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8a6a45]">
+            {t.kicker}
+          </p>
+          <h1 className="font-display mt-2 text-4xl tracking-tight text-[#1c1915] sm:text-5xl">
+            {t.appName}
+          </h1>
+          <p className="mt-2 capitalize text-[#6b645b]">{today}</p>
+        </div>
+        <button
+          type="button"
+          onClick={generate}
+          disabled={generating}
+          className="rounded-full bg-[#1c1915] px-5 py-2.5 text-sm font-medium text-[#f6f1e8] transition hover:bg-[#34302b] disabled:opacity-50"
+        >
+          {generating ? t.generating : t.generate}
+        </button>
+      </header>
 
       {result ? (
-        <div className="mt-8 space-y-8">
+        <div className="mt-10 space-y-14">
           <section>
-            <h2 className="text-2xl font-semibold mb-4">{t.news}</h2>
-            <div className="space-y-4">
+            <h2 className="font-display text-2xl text-[#1c1915]">{t.news}</h2>
+            <div className="mt-5 divide-y divide-[#eadfce]">
               {result.news?.items?.map((item: any, i: number) => (
-                <div key={i} className="border rounded-lg p-4 bg-white shadow-sm">
-                  <h3 className="font-bold text-lg">{item.title}</h3>
-                  <p className="mt-2 text-gray-700">{item.summary}</p>
-                  <p className="mt-2 text-sm text-blue-600">{item.why}</p>
+                <article key={i} className="py-6 first:pt-0">
+                  <p className="font-display text-sm text-[#c4552a]">
+                    {String(i + 1).padStart(2, '0')}
+                  </p>
+                  <h3 className="font-display mt-1 text-2xl leading-snug tracking-tight">
+                    {item.title}
+                  </h3>
+                  <p className="mt-3 leading-relaxed text-[#3f3a34]">{item.summary}</p>
+                  {item.why && (
+                    <p className="mt-3 text-sm italic text-[#6b645b]">{item.why}</p>
+                  )}
                   <Link
-                    href={`/news/${i}?title=${encodeURIComponent(item.title)}&summary=${encodeURIComponent(item.summary)}&why=${encodeURIComponent(item.why)}`}
-                    className="inline-block mt-3 text-blue-600 hover:underline text-sm"
+                    href={`/news/${i}?title=${encodeURIComponent(item.title)}&summary=${encodeURIComponent(item.summary)}&why=${encodeURIComponent(item.why || '')}`}
+                    className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-[#0f6e6b] hover:underline"
                   >
                     {t.readMore}
+                    <span aria-hidden>→</span>
                   </Link>
-                </div>
+                </article>
               ))}
             </div>
           </section>
 
-          <section>
-            <h2 className="text-2xl font-semibold mb-4">{t.lesson}</h2>
-            
-            <div className="flex gap-4 mb-4 items-center">
+          <section className="rounded-3xl border border-[#d7ebe6] bg-[#f7fbfa] p-6 sm:p-8">
+            <h2 className="font-display text-2xl text-[#134e4a]">{t.lesson}</h2>
+
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
               <select
                 value={learningLanguage}
                 onChange={(e) => updateLearning(e.target.value, languageLevel)}
-                className="border p-2 rounded"
+                className={fieldClass}
               >
-                <option value="hungarian">Magyar</option>
-                <option value="english">Angol</option>
-                <option value="german">Német</option>
-                <option value="spanish">Spanyol</option>
-                <option value="french">Francia</option>
-                <option value="italian">Olasz</option>
-                <option value="japanese">Japán</option>
+                {languages.map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
               </select>
 
               <select
                 value={languageLevel}
                 onChange={(e) => updateLearning(learningLanguage, e.target.value)}
-                className="border p-2 rounded"
+                className={fieldClass}
               >
-                <option value="A1">A1</option>
-                <option value="A2">A2</option>
-                <option value="B1">B1</option>
-                <option value="B2">B2</option>
-                <option value="C1">C1</option>
+                {levels.map((level) => (
+                  <option key={level} value={level}>{level}</option>
+                ))}
               </select>
 
               <button
+                type="button"
                 onClick={generateLesson}
-                className="bg-green-600 text-white px-4 py-2 rounded text-sm"
+                disabled={lessonLoading}
+                className="rounded-full bg-[#0f6e6b] px-4 py-2 text-sm font-medium text-white hover:bg-[#0c5c59] disabled:opacity-50"
               >
-                {t.newLesson}
+                {lessonLoading ? t.generating : t.newLesson}
               </button>
             </div>
 
-            {result.lesson && (
-              <div className="border rounded-lg p-6 bg-green-50">
-                <p className="text-xl font-bold">{result.lesson?.word}</p>
-                <p className="mt-2 italic">{result.lesson?.example}</p>
-                <p className="mt-2 text-gray-700">{result.lesson?.explanation}</p>
+            {result.lesson?.word ? (
+              <div className="mt-6 border-t border-[#d7ebe6] pt-6">
+                <p className="font-display text-4xl tracking-tight text-[#134e4a]">
+                  {result.lesson.word}
+                </p>
+                {result.lesson.example && (
+                  <p className="mt-4 text-lg italic leading-relaxed text-[#1c1915]">
+                    “{result.lesson.example}”
+                  </p>
+                )}
+                {result.lesson.explanation && (
+                  <p className="mt-3 leading-relaxed text-[#3f3a34]">
+                    {result.lesson.explanation}
+                  </p>
+                )}
               </div>
+            ) : (
+              <p className="mt-6 text-sm text-[#5f7a76]">{t.noLesson}</p>
             )}
           </section>
         </div>
       ) : (
-        <p className="mt-8 text-gray-500">{t.noDigest}</p>
+        <div className="mt-10 rounded-3xl border border-dashed border-[#d9cfc0] bg-[#fffaf3] px-6 py-12 text-center">
+          <p className="text-[#6b645b]">{t.noDigest}</p>
+        </div>
       )}
     </div>
   )

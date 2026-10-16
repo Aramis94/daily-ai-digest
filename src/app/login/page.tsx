@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 const translations = {
   hu: {
     title: 'Bejelentkezés',
+    subtitle: 'A napi hírek és a nyelvlecke itt vár.',
     email: 'Email',
     password: 'Jelszó',
     login: 'Bejelentkezés',
@@ -16,6 +17,7 @@ const translations = {
   },
   en: {
     title: 'Login',
+    subtitle: 'Your daily news and language lesson are here.',
     email: 'Email',
     password: 'Password',
     login: 'Login',
@@ -25,6 +27,7 @@ const translations = {
   },
   de: {
     title: 'Anmelden',
+    subtitle: 'Deine täglichen Nachrichten und die Sprachlektion warten hier.',
     email: 'E-Mail',
     password: 'Passwort',
     login: 'Anmelden',
@@ -59,52 +62,68 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="p-8 max-w-md mx-auto">
-      {/* Nyelvválasztó */}
-      <div className="flex justify-end gap-2 mb-6">
-        {(['hu', 'en', 'de'] as const).map((code) => (
-          <button
-            key={code}
-            onClick={() => setLang(code)}
-            className={`px-3 py-1 text-sm rounded transition ${
-              lang === code
-                ? 'bg-zinc-800 text-white dark:bg-white dark:text-black'
-                : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
-            }`}
-          >
-            {code.toUpperCase()}
-          </button>
-        ))}
-      </div>
+    <div className="flex min-h-screen items-center justify-center px-5 py-12">
+      <div className="w-full max-w-md">
+        <p className="font-display text-center text-3xl tracking-tight">Daily AI Digest</p>
+        <p className="mt-2 text-center text-sm text-[#6b645b]">{t.subtitle}</p>
 
-      <h1 className="text-2xl font-bold mb-6">{t.title}</h1>
-      
-      <input
-        type="email"
-        placeholder={t.email}
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        className="border p-2 w-full mb-3 rounded"
-      />
-      
-      <input
-        type="password"
-        placeholder={t.password}
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        className="border p-2 w-full mb-4 rounded"
-      />
-      
-      <div className="flex gap-3">
-        <button onClick={handleLogin} className="bg-blue-600 text-white px-4 py-2 rounded">
-          {t.login}
-        </button>
-        <button onClick={handleSignUp} className="bg-gray-300 px-4 py-2 rounded">
-          {t.signup}
-        </button>
+        <div className="mt-8 rounded-3xl border border-[#e4d9c8] bg-[#fffaf3] p-6 shadow-[0_20px_50px_-30px_rgba(28,25,21,0.45)] sm:p-8">
+          <div className="mb-6 flex justify-between items-center">
+            <h1 className="font-display text-2xl">{t.title}</h1>
+            <div className="flex gap-1 rounded-full bg-[#efe7db] p-1">
+              {(['hu', 'en', 'de'] as const).map((code) => (
+                <button
+                  key={code}
+                  type="button"
+                  onClick={() => setLang(code)}
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium transition ${
+                    lang === code
+                      ? 'bg-[#1c1915] text-[#f6f1e8]'
+                      : 'text-[#5e574e] hover:text-[#1c1915]'
+                  }`}
+                >
+                  {code.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <input
+            type="email"
+            placeholder={t.email}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="mb-3 w-full rounded-xl border border-[#e4d9c8] bg-white px-3 py-2.5"
+          />
+
+          <input
+            type="password"
+            placeholder={t.password}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="mb-5 w-full rounded-xl border border-[#e4d9c8] bg-white px-3 py-2.5"
+          />
+
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={handleLogin}
+              className="rounded-full bg-[#1c1915] px-4 py-2.5 text-sm font-medium text-[#f6f1e8]"
+            >
+              {t.login}
+            </button>
+            <button
+              type="button"
+              onClick={handleSignUp}
+              className="rounded-full border border-[#d9cfc0] bg-white px-4 py-2.5 text-sm"
+            >
+              {t.signup}
+            </button>
+          </div>
+
+          {message && <p className="mt-4 text-sm text-[#5e574e]">{message}</p>}
+        </div>
       </div>
-      
-      {message && <p className="mt-4 text-sm">{message}</p>}
     </div>
   )
 }
