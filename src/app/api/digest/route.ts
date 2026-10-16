@@ -29,9 +29,12 @@ export async function POST() {
     profile = data?.[0]
   }
 
-  if (!profile) {
-    console.log('No profile found')
-    return NextResponse.json({ error: 'No profile found' }, { status: 400 })
+   if (!profile) {
+    return NextResponse.json({ 
+      error: 'No profile found',
+      user: user ? user.id : null,
+      debug: 'Check if you are logged in and have a profile'
+    }, { status: 400 })
   }
 
   const topics = profile.topics?.join(', ') || 'tech, AI'
