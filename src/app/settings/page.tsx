@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 export default function SettingsPage() {
   const [language, setLanguage] = useState('hungarian')
   const [topics, setTopics] = useState('')
+  const [emailNotifications, setEmailNotifications] = useState(true)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -23,13 +24,14 @@ export default function SettingsPage() {
 
       const { data } = await supabase
         .from('profiles')
-        .select('language, topics')
+        .select('language, topics, email_notifications')
         .eq('id', user.id)
         .single()
 
       if (data) {
         setLanguage(data.language || 'hungarian')
         setTopics((data.topics || []).join(', '))
+        setEmailNotifications(data.email_notifications ?? true)
       }
       setLoading(false)
     }
@@ -49,7 +51,11 @@ export default function SettingsPage() {
 
     const { error } = await supabase
       .from('profiles')
-      .update({ language, topics: topicsArray })
+      .update({ 
+        language, 
+        topics: topicsArray,
+        email_notifications: emailNotifications 
+      })
       .eq('id', user.id)
 
     setMessage(error ? error.message : 'Mentve!')
@@ -81,21 +87,3 @@ export default function SettingsPage() {
         <input
           type="text"
           value={topics}
-          onChange={(e) => setTopics(e.target.value)}
-          placeholder="pl. AI, tech, tudomány, sport"
-          className="border p-2 w-full rounded"
-        />
-      </div>
-
-      <button
-        onClick={handleSave}
-        disabled={saving}
-        className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50"
-      >
-        {saving ? 'Mentés...' : 'Mentés'}
-      </button>
-
-      {message && <p className="mt-4 text-sm">{message}</p>}
-    </div>
-  )
-}

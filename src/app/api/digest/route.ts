@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
+import { Resend } from 'resend'
 import { createClient } from '@/lib/supabase/server'
 
 const groq = new OpenAI({
@@ -7,21 +8,24 @@ const groq = new OpenAI({
   baseURL: 'https://api.groq.com/openai/v1',
 })
 
+const resend = new Resend(process.env.RESEND_API_KEY)
+
 export async function POST(request: Request) {
   const supabase = await createClient()
 
-  // Ha a kliens küld userId-t (gombnyomás), csak arra generálunk
   let body: any = {}
   try {
     body = await request.json()
   } catch {
-    // Cron hívásnál nincs body
+    // Cron hívás
   }
 
   const specificUserId = body.userId
 
-  // Lekérjük a profilokat
-  let query = supabase.from('profiles').select('id, language, topics')
+  let query = supabase
+    .from('profiles')
+    .select('id, language, topics, email_notifications')
+
   if (specificUserId) {
     query = query.eq('id', specificUserId)
   }
@@ -67,6 +71,32 @@ export async function POST(request: Request) {
         news,
         language_lesson: lesson,
       })
+
+      // Email küldés, ha be van kapcsolva
+      if (profile.email_notifications) {
+        const { data: userData } = await supabase.auth.admin.getUserById(profile.id)
+        const email = userData?.user?.email
+
+        if (email) {
+          const newsHtml = news.items?.map((item: any) => 
+            `<h3>${item.title}</h3><p>${item.summary}</p><p><em>${item.why}</em></p>`
+          ).join('') || ''
+
+          await resend.emails.send({
+            from: 'Daily Digest <onboarding@resend.dev>',
+            to: email,
+            subject: 'A mai Daily AI Digest',
+            html: `
+              <h2>Hírek</h2>
+              ${newsHtml}
+              <h2>Nyelvlecke</h2>
+              <p><strong>${lesson.word}</strong></p>
+              <p><em>${lesson.example}</em></p>
+              <p>${lesson.explanation}</p>
+            `,
+          })
+        }
+      }
 
       results.push({ userId: profile.id, status: 'ok' })
     } catch (err) {
