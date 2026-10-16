@@ -14,9 +14,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="hu">
-      <body>
+            <body>
         <Navbar />
-        {children}
+        <main className="pt-6">
+          {children}
+        </main>
       </body>
     </html>
   )
