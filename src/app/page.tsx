@@ -71,11 +71,7 @@ export default function Home() {
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
 
-    await fetch('/api/digest', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: user?.id })
-    })
+    await fetch('/api/digest', { method: 'POST' })
 
     const { data } = await supabase
       .from('daily_digests')
@@ -98,12 +94,10 @@ export default function Home() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    const res = await fetch('/api/lesson', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: user.id })
-    })
+    const res = await fetch('/api/lesson', { method: 'POST' })
+    if (!res.ok) return
     const data = await res.json()
+    if (!data.lesson) return
 
     setResult((prev: any) => ({
       ...prev,

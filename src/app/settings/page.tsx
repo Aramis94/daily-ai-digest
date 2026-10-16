@@ -51,6 +51,7 @@ export default function SettingsPage() {
       .split(',')
       .map(t => t.trim())
       .filter(t => t.length > 0)
+      .slice(0, 12)
 
     const { error } = await supabase
       .from('profiles')
@@ -63,11 +64,7 @@ export default function SettingsPage() {
 
     if (!error) {
       // Újrageneráljuk a legutóbbi digestet az új nyelven
-      await fetch('/api/digest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id })
-      })
+      await fetch('/api/digest', { method: 'POST' })
       window.location.reload()
     } else {
       setMessage(error.message)
