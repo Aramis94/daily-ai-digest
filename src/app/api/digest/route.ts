@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   try {
     body = await request.json()
   } catch {
-    // Cron hívás
+    // Cron
   }
 
   const specificUserId = body.userId
@@ -72,35 +72,33 @@ export async function POST(request: Request) {
         language_lesson: lesson,
       })
 
-      // Email küldés, ha be van kapcsolva
+      let emailResult = 'not attempted'
       if (profile.email_notifications) {
-        const { data: userData } = await supabase.auth.admin.getUserById(profile.id)
-        const email = userData?.user?.email
+        const newsHtml = news.items?.map((item: any) => 
+          `<h3>${item.title}</h3><p>${item.summary}</p><p><em>${item.why}</em></p>`
+        ).join('') || ''
 
-        if (email) {
-          const newsHtml = news.items?.map((item: any) => 
-            `<h3>${item.title}</h3><p>${item.summary}</p><p><em>${item.why}</em></p>`
-          ).join('') || ''
+        const { data, error } = await resend.emails.send({
+          from: 'Daily Digest <onboarding@resend.dev>',
+          to: 'nw940417@gmail.com',
+          subject: 'A mai Daily AI Digest',
+          html: `
+            <h2>Hírek</h2>
+            ${newsHtml}
+            <h2>Nyelvlecke</h2>
+            <p><strong>${lesson.word}</strong></p>
+            <p><em>${lesson.example}</em></p>
+            <p>${lesson.explanation}</p>
+          `,
+        })
 
-          await resend.emails.send({
-            from: 'Daily Digest <onboarding@resend.dev>',
-            to: 'nw940417@gmail.com',
-            subject: 'A mai Daily AI Digest',
-            html: `
-              <h2>Hírek</h2>
-              ${newsHtml}
-              <h2>Nyelvlecke</h2>
-              <p><strong>${lesson.word}</strong></p>
-              <p><em>${lesson.example}</em></p>
-              <p>${lesson.explanation}</p>
-            `,
-          })
-        }
+        emailResult = error ? `Error: ${JSON.stringify(error)}` : `Sent: ${JSON.stringify(data)}`
+        console.log('Resend response:', emailResult)
       }
 
-      results.push({ userId: profile.id, status: 'ok' })
-    } catch (err) {
-      results.push({ userId: profile.id, status: 'error' })
+      results.push({ userId: profile.id, status: 'ok', email: emailResult })
+    } catch (err: any) {
+      results.push({ userId: profile.id, status: 'error', message: err.message })
     }
   }
 
