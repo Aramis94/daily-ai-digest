@@ -7,18 +7,36 @@ export default function Home() {
   const [result, setResult] = useState<any>(null)
   const [loading, setLoading] = useState(false)
 
-    const generate = async () => {
+  const generate = async () => {
     setLoading(true)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    
-    const res = await fetch('/api/digest', { 
+
+    const res = await fetch('/api/digest', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId: user?.id })
     })
     const data = await res.json()
-    setResult(data)
+
+    // Ha van results, és van benne adat, lekérjük a legújabb digestet
+    if (data.results && data.results.length > 0) {
+      const { data: digests } = await supabase
+        .from('daily_digests')
+        .select('news, language_lesson')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      setResult({
+        news: digests?.news,
+        lesson: digests?.language_lesson
+      })
+    } else {
+      setResult(data)
+    }
+
     setLoading(false)
   }
 
@@ -36,7 +54,6 @@ export default function Home() {
 
       {result && (
         <div className="mt-8 space-y-8">
-          {/* Hírek */}
           <section>
             <h2 className="text-2xl font-semibold mb-4">Hírek</h2>
             <div className="space-y-4">
@@ -50,7 +67,6 @@ export default function Home() {
             </div>
           </section>
 
-          {/* Nyelvlecke */}
           <section>
             <h2 className="text-2xl font-semibold mb-4">Napi nyelvlecke</h2>
             <div className="border rounded-lg p-6 bg-green-50">
