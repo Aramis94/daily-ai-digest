@@ -9,18 +9,30 @@ const groq = new OpenAI({
 
 export async function POST() {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
 
-  // Ideiglenesen: az első felhasználóra generál (később minden userre)
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select('id, language, topics')
-    .limit(1)
-
-  if (!profiles || profiles.length === 0) {
-    return NextResponse.json({ error: 'No users' }, { status: 400 })
+  let profile
+  if (user) {
+    // Bejelentkezett felhasználó
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, language, topics')
+      .eq('id', user.id)
+      .single()
+    profile = data
+  } else {
+    // Cron job (nincs user)
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, language, topics')
+      .limit(1)
+    profile = data?.[0]
   }
 
-  const profile = profiles[0]
+  if (!profile) {
+    return NextResponse.json({ error: 'No profile found' }, { status: 400 })
+  }
+
   const topics = profile.topics?.join(', ') || 'tech, AI'
   const language = profile.language || 'hungarian'
 
