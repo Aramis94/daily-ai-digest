@@ -40,41 +40,27 @@ export async function POST(request: Request) {
 
   for (const profile of profiles) {
     const topics = profile.topics?.join(', ') || 'tech, AI'
-    const language = profile.language || 'hungarian'
-
-    const languageName = language === 'hungarian' ? 'Hungarian' : 
-                         language === 'german' ? 'German' : 
-                         language === 'spanish' ? 'Spanish' : 'English'
+    const languageName = profile.language === 'hungarian' ? 'Hungarian' : 
+                         profile.language === 'german' ? 'German' : 
+                         profile.language === 'spanish' ? 'Spanish' : 'English'
 
     const newsPrompt = `Give me 3 short, interesting news summaries about: ${topics}. 
     Write the titles and summaries in ${languageName}.
     Format as JSON: {"items": [{"title": "...", "summary": "...", "why": "..."}]}`
 
-    const lessonPrompt = `Teach one useful thing in ${languageName} language. 
-    Include: a word/phrase, example sentence, and short explanation. 
-    Format as JSON: {"word": "...", "example": "...", "explanation": "..."}`
-
     try {
-      const [newsRes, lessonRes] = await Promise.all([
-        groq.chat.completions.create({
-          model: 'openai/gpt-oss-120b',
-          messages: [{ role: 'user', content: newsPrompt }],
-          response_format: { type: 'json_object' },
-        }),
-        groq.chat.completions.create({
-          model: 'openai/gpt-oss-120b',
-          messages: [{ role: 'user', content: lessonPrompt }],
-          response_format: { type: 'json_object' },
-        }),
-      ])
+      const newsRes = await groq.chat.completions.create({
+        model: 'openai/gpt-oss-120b',
+        messages: [{ role: 'user', content: newsPrompt }],
+        response_format: { type: 'json_object' },
+      })
 
       const news = JSON.parse(newsRes.choices[0].message.content || '{}')
-      const lesson = JSON.parse(lessonRes.choices[0].message.content || '{}')
 
       await supabase.from('daily_digests').insert({
         user_id: profile.id,
         news,
-        language_lesson: lesson,
+        language_lesson: null,
       })
 
       if (profile.email_notifications) {
@@ -93,9 +79,6 @@ export async function POST(request: Request) {
               <ul>
                 ${titles}
               </ul>
-
-              <h3>Napi nyelvlecke</h3>
-              <p><strong>${lesson.word}</strong></p>
 
               <p style="margin-top: 24px;">
                 <a href="https://daily-ai-digest-indol.vercel.app" 

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { translations } from '@/lib/translations'
 
 export default function SettingsPage() {
   const [language, setLanguage] = useState('hungarian')
@@ -13,6 +14,8 @@ export default function SettingsPage() {
   const [message, setMessage] = useState('')
   const supabase = createClient()
   const router = useRouter()
+
+  const t = translations[language as keyof typeof translations] || translations.hungarian
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -38,7 +41,7 @@ export default function SettingsPage() {
     loadProfile()
   }, [supabase, router])
 
-  const handleSave = async () => {
+    const handleSave = async () => {
     setSaving(true)
     setMessage('')
     const { data: { user } } = await supabase.auth.getUser()
@@ -58,37 +61,47 @@ export default function SettingsPage() {
       })
       .eq('id', user.id)
 
-    setMessage(error ? error.message : 'Mentve!')
+    if (!error) {
+      // Újrageneráljuk a legutóbbi digestet az új nyelven
+      await fetch('/api/digest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id })
+      })
+      window.location.reload()
+    } else {
+      setMessage(error.message)
+    }
     setSaving(false)
   }
 
-  if (loading) return <p className="p-8">Betöltés...</p>
+  if (loading) return <p className="p-8">{t.loading}</p>
 
   return (
     <div className="p-8 max-w-md mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Beállítások</h1>
+      <h1 className="text-2xl font-bold mb-6">{t.settings}</h1>
 
       <div className="mb-4">
-        <label className="block text-sm font-medium mb-1">Nyelv</label>
+        <label className="block text-sm font-medium mb-1">{t.appLanguage}</label>
         <select
           value={language}
           onChange={(e) => setLanguage(e.target.value)}
           className="border p-2 w-full rounded"
         >
           <option value="hungarian">Magyar</option>
-          <option value="english">Angol</option>
-          <option value="german">Német</option>
-          <option value="spanish">Spanyol</option>
+          <option value="english">English</option>
+          <option value="german">Deutsch</option>
+          <option value="spanish">Español</option>
         </select>
       </div>
 
       <div className="mb-6">
-        <label className="block text-sm font-medium mb-1">Témák (vesszővel elválasztva)</label>
+        <label className="block text-sm font-medium mb-1">{t.topics}</label>
         <input
           type="text"
           value={topics}
           onChange={(e) => setTopics(e.target.value)}
-          placeholder="pl. AI, tech, tudomány, sport"
+          placeholder="AI, tech, science, sport"
           className="border p-2 w-full rounded"
         />
       </div>
@@ -100,7 +113,7 @@ export default function SettingsPage() {
             checked={emailNotifications}
             onChange={(e) => setEmailNotifications(e.target.checked)}
           />
-          <span>Email értesítés a napi digestről</span>
+          <span>{t.emailNotifications}</span>
         </label>
       </div>
 
@@ -109,7 +122,7 @@ export default function SettingsPage() {
         disabled={saving}
         className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50"
       >
-        {saving ? 'Mentés...' : 'Mentés'}
+        {saving ? t.saving : t.save}
       </button>
 
       {message && <p className="mt-4 text-sm">{message}</p>}
