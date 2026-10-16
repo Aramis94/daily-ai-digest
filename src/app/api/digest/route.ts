@@ -81,7 +81,7 @@ export async function POST(request: Request) {
 
           await resend.emails.send({
             from: 'Daily Digest <onboarding@resend.dev>',
-            to: email,
+            to: 'nw940417@gmail.com',
             subject: 'A mai Daily AI Digest kész',
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
