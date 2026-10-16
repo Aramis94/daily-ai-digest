@@ -39,6 +39,7 @@ type Lesson = {
 }
 
 type DigestView = {
+  id?: string
   news?: { items?: NewsItem[]; theme?: string; themeKey?: string } | null
   lesson?: Lesson | null
 }
@@ -92,7 +93,7 @@ export default function Home() {
 
       const { data } = await supabase
         .from('daily_digests')
-        .select('news, language_lesson')
+        .select('id, news, language_lesson')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -100,6 +101,7 @@ export default function Home() {
 
       if (data) {
         setResult({
+          id: data.id,
           news: data.news,
           lesson: data.language_lesson
         })
@@ -140,7 +142,7 @@ export default function Home() {
 
     const { data } = await supabase
       .from('daily_digests')
-      .select('news, language_lesson')
+      .select('id, news, language_lesson')
       .eq('user_id', user?.id)
       .order('created_at', { ascending: false })
       .limit(1)
@@ -148,6 +150,7 @@ export default function Home() {
 
     if (data) {
       setResult({
+        id: data.id,
         news: data.news,
         lesson: data.language_lesson
       })
@@ -165,6 +168,7 @@ export default function Home() {
       const data = await res.json()
       if (data.lesson) {
         setResult((prev) => ({
+          id: prev?.id,
           news: prev?.news,
           lesson: data.lesson
         }))
@@ -230,7 +234,7 @@ export default function Home() {
                     )}
                     <div className="mt-4 flex flex-wrap items-center gap-3">
                       <Link
-                        href={`/news/${i}?title=${encodeURIComponent(item.title || '')}&summary=${encodeURIComponent(item.summary || '')}&why=${encodeURIComponent(item.why || '')}`}
+                        href={`/news/${i}?digest=${result.id || ''}`}
                         className="inline-flex items-center gap-1 text-sm font-medium text-[#0f6e6b] hover:underline"
                       >
                         {t.readMore}

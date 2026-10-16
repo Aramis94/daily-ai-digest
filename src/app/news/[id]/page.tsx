@@ -1,10 +1,13 @@
 "use client"
 
 import { Suspense, useEffect, useState } from "react"
-import { useSearchParams } from "next/navigation"
+import { useParams, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import { translations } from "@/lib/translations"
+
+type Source = { name: string; url: string }
+type DetailView = { title: string; summary: string; detailed: string; sources: Source[] }
 
 function safeHttps(url: string) {
   try {
@@ -17,10 +20,11 @@ function safeHttps(url: string) {
 }
 
 function NewsDetailContent() {
+  const params = useParams<{ id: string }>()
   const searchParams = useSearchParams()
-  const title = searchParams.get("title") || ""
-  const summary = searchParams.get("summary") || ""
-  const [detail, setDetail] = useState<any>(null)
+  const digestId = searchParams.get("digest") || ""
+  const index = Number(params.id)
+  const [detail, setDetail] = useState<DetailView | null>(null)
   const [failed, setFailed] = useState(false)
   const [loading, setLoading] = useState(true)
   const [appLanguage, setAppLanguage] = useState("hungarian")
@@ -30,49 +34,70 @@ function NewsDetailContent() {
     const load = async () => {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("language")
-          .eq("id", user.id)
-          .single()
-        if (profile?.language) setAppLanguage(profile.language)
+      if (!user) {
+        window.location.href = "/login"
+        return
       }
 
-      if (!title) {
-        setLoading(false)
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("language")
+        .eq("id", user.id)
+        .single()
+      if (profile?.language) setAppLanguage(profile.language)
+
+      if (!/^[0-9a-f-]{36}$/i.test(digestId) || !Number.isInteger(index)) {
         setFailed(true)
+        setLoading(false)
+        return
+      }
+
+      const { data: row } = await supabase
+        .from("daily_digests")
+        .select("news")
+        .eq("id", digestId)
+        .eq("user_id", user.id)
+        .single()
+
+      const item = row?.news?.items?.[index]
+      if (item?.detail?.detailed) {
+        const sources = (item.detail.sources || [])
+          .map((source: { name?: string; url?: string }) => {
+            const url = source.url ? safeHttps(source.url) : null
+            if (!url || !source.name) return null
+            return { name: source.name, url }
+          })
+          .filter((source: Source | null): source is Source => source !== null)
+
+        setDetail({
+          title: item.title || "",
+          summary: item.summary || "",
+          detailed: item.detail.detailed,
+          sources,
+        })
+        setLoading(false)
         return
       }
 
       const res = await fetch("/api/news-detail", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, summary }),
+        body: JSON.stringify({ digestId, index }),
       })
       if (!res.ok) {
         setFailed(true)
         setLoading(false)
         return
       }
-      const data = await res.json()
-      setDetail(data)
+      setDetail(await res.json())
       setLoading(false)
     }
     load()
-  }, [title, summary])
+  }, [digestId, index])
 
   if (loading) {
     return <p className="mx-auto max-w-3xl px-5 py-16 text-sm text-[#8a8176]">{t.detailLoading}</p>
   }
-
-  const sources = (detail?.sources || [])
-    .map((source: { name?: string; url?: string }) => {
-      const url = source.url ? safeHttps(source.url) : null
-      if (!url || !source.name) return null
-      return { name: source.name, url }
-    })
-    .filter(Boolean) as { name: string; url: string }[]
 
   return (
     <article className="mx-auto max-w-3xl px-5 py-10 sm:px-8">
@@ -81,27 +106,27 @@ function NewsDetailContent() {
       </Link>
 
       <h1 className="font-display mt-5 text-4xl leading-tight tracking-tight sm:text-5xl">
-        {title}
+        {detail?.title}
       </h1>
 
-      {summary && (
-        <p className="mt-5 text-lg leading-relaxed text-[#5e574e]">{summary}</p>
+      {detail?.summary && (
+        <p className="mt-5 text-lg leading-relaxed text-[#5e574e]">{detail.summary}</p>
       )}
 
-      {failed ? (
+      {failed || !detail ? (
         <p className="mt-8 text-[#6b645b]">{t.detailFailed}</p>
       ) : (
         <p className="mt-8 whitespace-pre-wrap text-lg leading-8 text-[#1c1915]">
-          {detail?.detailed}
+          {detail.detailed}
         </p>
       )}
 
-      {sources.length > 0 && (
+      {(detail?.sources.length || 0) > 0 && (
         <div className="mt-10 rounded-3xl border border-[#e4d9c8] bg-[#fffaf3] p-6">
           <h2 className="font-display text-xl">{t.sources}</h2>
           <p className="mt-1 text-sm text-[#8a8176]">{t.sourcesNote}</p>
           <ul className="mt-4 flex flex-wrap gap-2">
-            {sources.map((source) => (
+            {detail?.sources.map((source) => (
               <li key={source.url}>
                 <a
                   href={source.url}

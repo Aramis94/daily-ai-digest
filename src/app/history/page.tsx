@@ -36,27 +36,6 @@ export default function HistoryPage() {
         return
       }
 
-      const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-      await supabase.from("daily_digests").delete().eq("user_id", user.id).lt("created_at", cutoff)
-
-      const { data: allRows } = await supabase
-        .from("daily_digests")
-        .select("id, news")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: true })
-
-      const rows = (allRows || []) as { id: string; news?: { items?: unknown[] } }[]
-      let total = rows.reduce((sum, row) => sum + (row.news?.items?.length || 0), 0)
-      const ids: string[] = []
-      for (const row of rows) {
-        if (total <= 200) break
-        ids.push(row.id)
-        total -= row.news?.items?.length || 0
-      }
-      if (ids.length > 0) {
-        await supabase.from("daily_digests").delete().in("id", ids).eq("user_id", user.id)
-      }
-
       const { data: profile } = await supabase
         .from("profiles")
         .select("language")

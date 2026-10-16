@@ -9,9 +9,28 @@ const groq = new OpenAI({
   baseURL: "https://api.groq.com/openai/v1",
 })
 
-type Detail = {
-  detailed?: string
-  sources?: { name?: string; url?: string }[]
+type Source = { name: string; url: string }
+type StoredDetail = { detailed?: string; sources?: { name?: string; url?: string }[] }
+type NewsItem = {
+  title?: string
+  summary?: string
+  why?: string
+  theme?: string
+  themeKey?: string
+  detail?: StoredDetail
+}
+type NewsPayload = { items?: NewsItem[]; theme?: string; themeKey?: string }
+
+function cleanSources(sources: { name?: string; url?: string }[] | undefined): Source[] {
+  return (sources || [])
+    .map((source) => {
+      const url = safeHttpsUrl(source.url)
+      const name = clampText(source.name, 120)
+      if (!url || !name) return null
+      return { name, url }
+    })
+    .filter((source): source is Source => source !== null)
+    .slice(0, 5)
 }
 
 export async function POST(request: Request) {
@@ -21,21 +40,43 @@ export async function POST(request: Request) {
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  let body: { title?: unknown; summary?: unknown }
+  let body: { digestId?: unknown; index?: unknown }
   try {
     body = await request.json()
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 })
   }
 
-  const title = clampText(body.title, 300)
-  const summary = clampText(body.summary, 2000)
-  if (!title || !summary) {
-    return NextResponse.json({ error: "Missing title or summary" }, { status: 400 })
+  const digestId = clampText(body.digestId, 40)
+  const index = Number(body.index)
+  if (!/^[0-9a-f-]{36}$/i.test(digestId) || !Number.isInteger(index) || index < 0 || index > 20) {
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 })
+  }
+
+  const { data: row } = await supabase
+    .from("daily_digests")
+    .select("id, news")
+    .eq("id", digestId)
+    .eq("user_id", user.id)
+    .single()
+
+  const news = row?.news as NewsPayload | null
+  const item = news?.items?.[index]
+  const title = clampText(item?.title, 300)
+  const summary = clampText(item?.summary, 2000)
+  if (!row || !news?.items || !item || !title || !summary) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 })
+  }
+
+  if (item.detail?.detailed) {
+    return NextResponse.json({
+      title,
+      summary,
+      detailed: item.detail.detailed,
+      sources: cleanSources(item.detail.sources),
+    })
   }
 
   const prompt = `Expand the news item between the markers into a longer article of 3-4 paragraphs.
@@ -53,22 +94,25 @@ Format as JSON: {"detailed": "...", "sources": [{"name": "...", "url": "https://
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
     })
-    const data = parseModelJson<Detail>(res.choices[0].message.content)
+    const data = parseModelJson<StoredDetail>(res.choices[0].message.content)
     if (!data?.detailed) {
       return NextResponse.json({ error: "Generation failed" }, { status: 502 })
     }
 
-    const sources = (data.sources || [])
-      .map((source) => {
-        const url = safeHttpsUrl(source.url)
-        const name = clampText(source.name, 120)
-        if (!url || !name) return null
-        return { name, url }
-      })
-      .filter((source): source is { name: string; url: string } => source !== null)
-      .slice(0, 5)
+    const sources = cleanSources(data.sources)
+    const items = news.items.map((current, i) => (
+      i === index ? { ...current, detail: { detailed: data.detailed, sources } } : current
+    ))
 
-    return NextResponse.json({ detailed: data.detailed, sources })
+    const { error } = await supabase
+      .from("daily_digests")
+      .update({ news: { ...news, items } })
+      .eq("id", digestId)
+      .eq("user_id", user.id)
+
+    if (error) return NextResponse.json({ error: "Save failed" }, { status: 500 })
+
+    return NextResponse.json({ title, summary, detailed: data.detailed, sources })
   } catch {
     return NextResponse.json({ error: "Generation failed" }, { status: 502 })
   }

@@ -92,12 +92,15 @@ ${JSON.stringify(source)}
         }
 
         const news = {
-          items: current.map((item, i) => ({
-            ...item,
-            title: next.items?.[i]?.title || item.title,
-            summary: next.items?.[i]?.summary || item.summary,
-            why: next.items?.[i]?.why || item.why,
-          })),
+          items: current.map((item, i) => {
+            const { detail: _detail, ...rest } = item
+            return {
+              ...rest,
+              title: next.items?.[i]?.title || item.title,
+              summary: next.items?.[i]?.summary || item.summary,
+              why: next.items?.[i]?.why || item.why,
+            }
+          }),
         }
         const language_lesson = !latestOnly && row.language_lesson
           ? { ...row.language_lesson, explanation: next.explanation || row.language_lesson.explanation }
