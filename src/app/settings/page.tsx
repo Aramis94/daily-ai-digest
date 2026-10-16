@@ -77,4 +77,25 @@ export default function SettingsPage() {
       </div>
 
       <div className="mb-6">
-        <label className="block text-sm font-medium 
+        <label className="block text-sm font-medium mb-1">Témák (vesszővel elválasztva)</label>
+        <input
+          type="text"
+          value={topics}
+          onChange={(e) => setTopics(e.target.value)}
+          placeholder="pl. AI, tech, tudomány, sport"
+          className="border p-2 w-full rounded"
+        />
+      </div>
+
+      <button
+        onClick={handleSave}
+        disabled={saving}
+        className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50"
+      >
+        {saving ? 'Mentés...' : 'Mentés'}
+      </button>
+
+      {message && <p className="mt-4 text-sm">{message}</p>}
+    </div>
+  )
+}
