@@ -1,6 +1,14 @@
 import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
+import { rateLimit } from '@/lib/rateLimit'
+
+export async function POST(request: Request) {
+  const ip = request.headers.get('x-forwarded-for') || 'unknown'
+  if (!rateLimit(ip, 5, 60_000)) { // 5 kérés / perc
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+  }
+
 
 const groq = new OpenAI({
   apiKey: process.env.GROQ_API_KEY,
@@ -27,15 +35,15 @@ export async function POST() {
   const targetLang = profile.learning_language || 'hungarian'
   const appLang = profile.language || 'hungarian'
 
-  const targetName = targetLang === 'hungarian' ? 'Hungarian' :
-                     targetLang === 'german' ? 'German' :
-                     targetLang === 'spanish' ? 'Spanish' :
-                     targetLang === 'french' ? 'French' :
-                     targetLang === 'italian' ? 'Italian' :
+  const targetName = targetLang === 'hungarian' ? 'Hungarian' : 
+                     targetLang === 'german' ? 'German' : 
+                     targetLang === 'spanish' ? 'Spanish' : 
+                     targetLang === 'french' ? 'French' : 
+                     targetLang === 'italian' ? 'Italian' : 
                      targetLang === 'japanese' ? 'Japanese' : 'English'
 
-  const appName = appLang === 'hungarian' ? 'Hungarian' :
-                  appLang === 'german' ? 'German' :
+  const appName = appLang === 'hungarian' ? 'Hungarian' : 
+                  appLang === 'german' ? 'German' : 
                   appLang === 'spanish' ? 'Spanish' : 'English'
 
   const lessonPrompt = `Teach one useful thing in ${targetName} for a learner whose interface language is ${appName}. 
@@ -50,6 +58,5 @@ export async function POST() {
   })
 
   const lesson = JSON.parse(res.choices[0].message.content || '{}')
-
   return NextResponse.json({ lesson })
 }

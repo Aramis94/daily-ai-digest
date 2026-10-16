@@ -1,8 +1,6 @@
-import { timingSafeEqual } from 'crypto'
 import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { Resend } from 'resend'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 
 const groq = new OpenAI({
@@ -12,59 +10,39 @@ const groq = new OpenAI({
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
-function isCron(request: Request) {
-  const secret = process.env.CRON_SECRET
-  const header = request.headers.get('authorization') ?? ''
-  if (!secret || !header.startsWith('Bearer ')) return false
-  const token = header.slice('Bearer '.length)
-  const a = Buffer.from(token)
-  const b = Buffer.from(secret)
-  if (a.length !== b.length) return false
-  return timingSafeEqual(a, b)
-}
+export async function POST(request: Request) {
+  const url = new URL(request.url)
+  const secret = url.searchParams.get('secret')
+  const isCron = secret === process.env.CRON_SECRET
 
-function adminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!url || !key) return null
-  return createAdminClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  })
-}
+  const supabase = await createClient()
 
-async function handle(request: Request) {
-  const cookieClient = await createClient()
-  const cron = isCron(request)
+  // Mindig a bejelentkezett usert használjuk
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!isCron && !user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
-  let targetUserId: string | null = null
-  let supabase: { from: (table: string) => any }
+  // Cron secret ellenőrzés (lásd 2. pont)
+  const authHeader = request.headers.get('authorization')
+  const isCron = authHeader === `Bearer ${process.env.CRON_SECRET}`
 
-  if (cron) {
-    const admin = adminClient()
-    if (!admin) {
-      return NextResponse.json({ error: 'Missing SUPABASE_SERVICE_ROLE_KEY' }, { status: 500 })
-    }
-    supabase = admin
+  let profiles
+  if (isCron) {
+    // Cron: minden user
+    const { data } = await supabase.from('profiles').select('id, language, topics, email_notifications')
+    profiles = data
   } else {
-    const { data: { user } } = await cookieClient.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    targetUserId = user.id
-    supabase = cookieClient
+    // Normál hívás: csak a saját
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, language, topics, email_notifications')
+      .eq('id', user.id)
+      .single()
+    profiles = data ? [data] : []
   }
 
-  let query = supabase
-    .from('profiles')
-    .select('id, language, topics, email_notifications')
-
-  if (targetUserId) {
-    query = query.eq('id', targetUserId)
-  }
-
-  const { data: profiles, error } = await query
-
-  if (error || !profiles || profiles.length === 0) {
+  if (!profiles || profiles.length === 0) {
     return NextResponse.json({ error: 'No profiles found' }, { status: 400 })
   }
 
@@ -72,8 +50,8 @@ async function handle(request: Request) {
 
   for (const profile of profiles) {
     const topics = profile.topics?.join(', ') || 'tech, AI'
-    const languageName = profile.language === 'hungarian' ? 'Hungarian' :
-                         profile.language === 'german' ? 'German' :
+    const languageName = profile.language === 'hungarian' ? 'Hungarian' : 
+                         profile.language === 'german' ? 'German' : 
                          profile.language === 'spanish' ? 'Spanish' : 'English'
 
     const newsPrompt = `Give me 3 short, interesting news summaries about: ${topics}. 
@@ -96,47 +74,37 @@ async function handle(request: Request) {
       })
 
       if (profile.email_notifications) {
-        const titles = news.items?.map((item: { title: string }) => `<li>${item.title}</li>`).join('') || '<li>Nincs hír</li>'
-
-        await resend.emails.send({
-          from: 'Daily Digest <onboarding@resend.dev>',
-          to: 'nw940417@gmail.com',
-          subject: 'A mai Daily AI Digest kész',
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h2 style="color: #1a73e8;">Daily AI Digest</h2>
-              <p>A mai digeszted elkészült a következő témákban: <strong>${topics}</strong></p>
-              
-              <h3>Hírek címei</h3>
-              <ul>
-                ${titles}
-              </ul>
-
-              <p style="margin-top: 24px;">
-                <a href="https://daily-ai-digest-indol.vercel.app" 
-                   style="background: #1a73e8; color: white; padding: 10px 16px; text-decoration: none; border-radius: 6px;">
-                  Megnézem a teljes digesztet
-                </a>
-              </p>
-            </div>
-          `,
-        })
+        // Dinamikus email a userből
+        const { data: userData } = await supabase.auth.admin.getUserById(profile.id)
+        const email = userData?.user?.email
+        if (email) {
+          const titles = news.items?.map((item: any) => `<li>${item.title}</li>`).join('') || '<li>Nincs hír</li>'
+          await resend.emails.send({
+            from: 'Daily Digest <onboarding@resend.dev>',
+            to: email,
+            subject: 'A mai Daily AI Digest kész',
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #1a73e8;">Daily AI Digest</h2>
+                <p>A mai digeszted elkészült a következő témákban: <strong>${topics}</strong></p>
+                <h3>Hírek címei</h3>
+                <ul>${titles}</ul>
+                <p style="margin-top: 24px;">
+                  <a href="https://daily-ai-digest-indol.vercel.app" style="background: #1a73e8; color: white; padding: 10px 16px; text-decoration: none; border-radius: 6px;">
+                    Megnézem a teljes digesztet
+                  </a>
+                </p>
+              </div>
+            `,
+          })
+        }
       }
 
       results.push({ userId: profile.id, status: 'ok' })
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Unknown error'
-      results.push({ userId: profile.id, status: 'error', message })
+    } catch (err: any) {
+      results.push({ userId: profile.id, status: 'error', message: err.message })
     }
   }
 
   return NextResponse.json({ results })
-}
-
-export async function POST(request: Request) {
-  return handle(request)
-}
-
-export async function GET(request: Request) {
-  return handle(request)
 }

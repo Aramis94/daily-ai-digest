@@ -1,7 +1,7 @@
 {
   "crons": [
     {
-      "path": "/api/digest",
+      "path": "/api/digest?secret=5uuQRT54PlUeBlU51by5fgNFIVyU2ARwHOF1FHt06Lg=",
       "schedule": "0 7 * * *"
     }
   ]
