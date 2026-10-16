@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { Resend } from 'resend'
 import { createClient } from '@/lib/supabase/server'
+import { rateLimit } from '@/lib/rateLimit'
 
 const groq = new OpenAI({
   apiKey: process.env.GROQ_API_KEY,
@@ -11,33 +12,31 @@ const groq = new OpenAI({
 const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(request: Request) {
+  const ip = request.headers.get('x-forwarded-for') || 'unknown'
+  if (!rateLimit(ip, 5, 60_000)) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+  }
+
   const url = new URL(request.url)
   const secret = url.searchParams.get('secret')
   const isCron = secret === process.env.CRON_SECRET
 
   const supabase = await createClient()
-
-  // Mindig a bejelentkezett usert használjuk
   const { data: { user } } = await supabase.auth.getUser()
+
   if (!isCron && !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // Cron secret ellenőrzés (lásd 2. pont)
-  const authHeader = request.headers.get('authorization')
-  const isCron = authHeader === `Bearer ${process.env.CRON_SECRET}`
-
   let profiles
   if (isCron) {
-    // Cron: minden user
     const { data } = await supabase.from('profiles').select('id, language, topics, email_notifications')
     profiles = data
   } else {
-    // Normál hívás: csak a saját
     const { data } = await supabase
       .from('profiles')
       .select('id, language, topics, email_notifications')
-      .eq('id', user.id)
+      .eq('id', user!.id)
       .single()
     profiles = data ? [data] : []
   }
@@ -49,7 +48,7 @@ export async function POST(request: Request) {
   const results = []
 
   for (const profile of profiles) {
-    const topics = profile.topics?.join(', ') || 'tech, AI'
+    const topics = (profile.topics?.join(', ') || 'tech, AI').slice(0, 200)
     const languageName = profile.language === 'hungarian' ? 'Hungarian' : 
                          profile.language === 'german' ? 'German' : 
                          profile.language === 'spanish' ? 'Spanish' : 'English'
@@ -74,7 +73,6 @@ export async function POST(request: Request) {
       })
 
       if (profile.email_notifications) {
-        // Dinamikus email a userből
         const { data: userData } = await supabase.auth.admin.getUserById(profile.id)
         const email = userData?.user?.email
         if (email) {

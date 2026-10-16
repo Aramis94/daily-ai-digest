@@ -3,19 +3,17 @@ import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
 import { rateLimit } from '@/lib/rateLimit'
 
-export async function POST(request: Request) {
-  const ip = request.headers.get('x-forwarded-for') || 'unknown'
-  if (!rateLimit(ip, 5, 60_000)) { // 5 kérés / perc
-    return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
-  }
-
-
 const groq = new OpenAI({
   apiKey: process.env.GROQ_API_KEY,
   baseURL: 'https://api.groq.com/openai/v1',
 })
 
-export async function POST() {
+export async function POST(request: Request) {
+  const ip = request.headers.get('x-forwarded-for') || 'unknown'
+  if (!rateLimit(ip, 5, 60_000)) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+  }
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
