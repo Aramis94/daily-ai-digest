@@ -1,44 +1,70 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 export default function Home() {
   const [result, setResult] = useState<any>(null)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const loadLatest = async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setLoading(false)
+        return
+      }
+
+      const { data } = await supabase
+        .from('daily_digests')
+        .select('news, language_lesson')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (data) {
+        setResult({
+          news: data.news,
+          lesson: data.language_lesson
+        })
+      }
+      setLoading(false)
+    }
+    loadLatest()
+  }, [])
 
   const generate = async () => {
     setLoading(true)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
-    const res = await fetch('/api/digest', {
+    await fetch('/api/digest', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId: user?.id })
     })
-    const data = await res.json()
 
-    // Ha van results, és van benne adat, lekérjük a legújabb digestet
-    if (data.results && data.results.length > 0) {
-      const { data: digests } = await supabase
-        .from('daily_digests')
-        .select('news, language_lesson')
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single()
+    // Újratöltjük a legújabbat
+    const { data } = await supabase
+      .from('daily_digests')
+      .select('news, language_lesson')
+      .eq('user_id', user?.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
 
+    if (data) {
       setResult({
-        news: digests?.news,
-        lesson: digests?.language_lesson
+        news: data.news,
+        lesson: data.language_lesson
       })
-    } else {
-      setResult(data)
     }
-
     setLoading(false)
   }
+
+  if (loading) return <p className="p-8">Betöltés...</p>
 
   return (
     <div className="p-8 max-w-3xl mx-auto">
@@ -49,10 +75,10 @@ export default function Home() {
         disabled={loading}
         className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium disabled:opacity-50"
       >
-        {loading ? 'Generálás...' : 'Napi digest generálása'}
+        {loading ? 'Generálás...' : 'Új digest generálása'}
       </button>
 
-      {result && (
+      {result ? (
         <div className="mt-8 space-y-8">
           <section>
             <h2 className="text-2xl font-semibold mb-4">Hírek</h2>
@@ -76,6 +102,8 @@ export default function Home() {
             </div>
           </section>
         </div>
+      ) : (
+        <p className="mt-8 text-gray-500">Még nincs digest. Kattints a gombra az első generáláshoz.</p>
       )}
     </div>
   )
