@@ -11,25 +11,26 @@ export async function POST() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  let profile
+    let profile
   if (user) {
-    // Bejelentkezett felhasználó
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
       .select('id, language, topics')
       .eq('id', user.id)
       .single()
+    console.log('Logged-in user query:', { data, error, userId: user.id })
     profile = data
   } else {
-    // Cron job (nincs user)
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
       .select('id, language, topics')
       .limit(1)
+    console.log('Cron query:', { data, error })
     profile = data?.[0]
   }
 
   if (!profile) {
+    console.log('No profile found')
     return NextResponse.json({ error: 'No profile found' }, { status: 400 })
   }
 
