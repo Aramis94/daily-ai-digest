@@ -30,7 +30,11 @@ export default function Navbar() {
       }
     }
     loadLanguage()
-  }, [supabase])
+  }, [pathname])
+  
+  useEffect(() => {
+  document.title = t.appName
+}, [t.appName])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()

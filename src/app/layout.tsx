@@ -15,7 +15,7 @@ const fraunces = Fraunces({
 })
 
 export const metadata: Metadata = {
-  title: 'Daily AI Digest',
+  title: 'Tudás minden napra',
   description: 'Napi hírek és nyelvtanulás',
 }
 

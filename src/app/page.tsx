@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { translations } from '@/lib/translations'
@@ -24,27 +24,50 @@ const languages = [
 
 const levels = ['A1', 'A2', 'B1', 'B2', 'C1']
 
+type NewsItem = {
+  title?: string
+  summary?: string
+  why?: string
+  theme?: string
+  themeKey?: string
+}
+
+type Lesson = {
+  word?: string
+  example?: string
+  explanation?: string
+}
+
+type DigestView = {
+  news?: { items?: NewsItem[]; theme?: string; themeKey?: string } | null
+  lesson?: Lesson | null
+}
+
+function todayLabel(language: string) {
+  return new Date().toLocaleDateString(locales[language] || 'hu-HU', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+}
+
 export default function Home() {
-  const [result, setResult] = useState<any>(null)
+  const [result, setResult] = useState<DigestView | null>(null)
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
   const [lessonLoading, setLessonLoading] = useState(false)
   const [appLanguage, setAppLanguage] = useState('hungarian')
   const [learningLanguage, setLearningLanguage] = useState('hungarian')
   const [languageLevel, setLanguageLevel] = useState('A2')
-  const [today, setToday] = useState('')
+  const [prefs, setPrefs] = useState<Record<string, number>>({})
   const supabase = createClient()
-
   const t = translations[appLanguage as keyof typeof translations] || translations.hungarian
-
-  useEffect(() => {
-    setToday(new Date().toLocaleDateString(locales[appLanguage] || 'hu-HU', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    }))
-  }, [appLanguage])
+  const today = useSyncExternalStore(
+    () => () => {},
+    () => todayLabel(appLanguage),
+    () => ''
+  )
 
   useEffect(() => {
     const loadLatest = async () => {
@@ -56,7 +79,7 @@ export default function Home() {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('language, learning_language, language_level')
+        .select('language, learning_language, language_level, topic_prefs')
         .eq('id', user.id)
         .single()
 
@@ -64,6 +87,7 @@ export default function Home() {
         setAppLanguage(profile.language || 'hungarian')
         setLearningLanguage(profile.learning_language || 'hungarian')
         setLanguageLevel(profile.language_level || 'A2')
+        setPrefs(profile.topic_prefs || {})
       }
 
       const { data } = await supabase
@@ -98,6 +122,16 @@ export default function Home() {
     setLanguageLevel(newLevel)
   }
 
+  async function voteTheme(key: string, vote: 1 | -1) {
+    const clean = key.trim().toLowerCase()
+    if (!clean) return
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const next = { ...prefs, [clean]: Math.max(-10, Math.min(10, (prefs[clean] || 0) + vote)) }
+    setPrefs(next)
+    await supabase.from('profiles').update({ topic_prefs: next }).eq('id', user.id)
+  }
+
   const generate = async () => {
     setGenerating(true)
     const { data: { user } } = await supabase.auth.getUser()
@@ -130,8 +164,8 @@ export default function Home() {
     if (res.ok) {
       const data = await res.json()
       if (data.lesson) {
-        setResult((prev: any) => ({
-          ...prev,
+        setResult((prev) => ({
+          news: prev?.news,
           lesson: data.lesson
         }))
       }
@@ -177,27 +211,60 @@ export default function Home() {
           <section>
             <h2 className="font-display text-2xl text-[#1c1915]">{t.news}</h2>
             <div className="mt-5 divide-y divide-[#eadfce]">
-              {result.news?.items?.map((item: any, i: number) => (
-                <article key={i} className="py-6 first:pt-0">
-                  <p className="font-display text-sm text-[#c4552a]">
-                    {String(i + 1).padStart(2, '0')}
-                  </p>
-                  <h3 className="font-display mt-1 text-2xl leading-snug tracking-tight">
-                    {item.title}
-                  </h3>
-                  <p className="mt-3 leading-relaxed text-[#3f3a34]">{item.summary}</p>
-                  {item.why && (
-                    <p className="mt-3 text-sm italic text-[#6b645b]">{item.why}</p>
-                  )}
-                  <Link
-                    href={`/news/${i}?title=${encodeURIComponent(item.title)}&summary=${encodeURIComponent(item.summary)}&why=${encodeURIComponent(item.why || '')}`}
-                    className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-[#0f6e6b] hover:underline"
-                  >
-                    {t.readMore}
-                    <span aria-hidden>→</span>
-                  </Link>
-                </article>
-              ))}
+              {result.news?.items?.map((item, i) => {
+                const theme = item.theme || result.news?.theme
+                const themeKey = String(item.themeKey || result.news?.themeKey || theme || '').trim().toLowerCase()
+                const themeScore = themeKey ? prefs[themeKey] || 0 : 0
+
+                return (
+                  <article key={i} className="py-6 first:pt-0">
+                    <p className="font-display text-sm text-[#c4552a]">
+                      {String(i + 1).padStart(2, '0')}
+                    </p>
+                    <h3 className="font-display mt-1 text-2xl leading-snug tracking-tight">
+                      {item.title}
+                    </h3>
+                    <p className="mt-3 leading-relaxed text-[#3f3a34]">{item.summary}</p>
+                    {item.why && (
+                      <p className="mt-3 text-sm italic text-[#6b645b]">{item.why}</p>
+                    )}
+                    <div className="mt-4 flex flex-wrap items-center gap-3">
+                      <Link
+                        href={`/news/${i}?title=${encodeURIComponent(item.title || '')}&summary=${encodeURIComponent(item.summary || '')}&why=${encodeURIComponent(item.why || '')}`}
+                        className="inline-flex items-center gap-1 text-sm font-medium text-[#0f6e6b] hover:underline"
+                      >
+                        {t.readMore}
+                        <span aria-hidden>→</span>
+                      </Link>
+                      {theme && (
+                        <span className="rounded-full bg-[#f3e4d8] px-3 py-1 text-sm text-[#8a4b32]">
+                          {t.category}: {theme} ({themeScore})
+                        </span>
+                      )}
+                      {theme && (
+                        <button
+                          type="button"
+                          onClick={() => voteTheme(themeKey, 1)}
+                          disabled={themeScore >= 10}
+                          className="rounded-full border border-[#e4d9c8] bg-white px-3 py-1 text-sm disabled:opacity-40"
+                        >
+                          {t.moreOften}
+                        </button>
+                      )}
+                      {theme && (
+                        <button
+                          type="button"
+                          onClick={() => voteTheme(themeKey, -1)}
+                          disabled={themeScore <= -10}
+                          className="rounded-full border border-[#e4d9c8] bg-white px-3 py-1 text-sm disabled:opacity-40"
+                        >
+                          {t.lessOften}
+                        </button>
+                      )}
+                    </div>
+                  </article>
+                )
+              })}
             </div>
           </section>
 

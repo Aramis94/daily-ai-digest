@@ -71,6 +71,43 @@ export default function SettingsPage() {
     setSaving(false)
   }
 
+  const deleteAllHistory = async () => {
+    if (!window.confirm(t.deleteAllConfirm)) return
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { error } = await supabase.from('daily_digests').delete().eq('user_id', user.id)
+    setMessage(error ? error.message : t.historyEmpty)
+  }
+
+  const resetProfile = async () => {
+    if (!window.confirm(t.resetConfirm)) return
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const { error: deleteError } = await supabase.from('daily_digests').delete().eq('user_id', user.id)
+    if (deleteError) {
+      setMessage(deleteError.message)
+      return
+    }
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        topics: [],
+        topic_prefs: {},
+        learning_language: 'hungarian',
+        language_level: 'A2',
+      })
+      .eq('id', user.id)
+
+    if (error) {
+      setMessage(error.message)
+      return
+    }
+
+    window.location.href = '/'
+  }
+
   if (loading) {
     return <p className="mx-auto max-w-lg px-5 py-16 text-sm text-[#8a8176]">{t.loading}</p>
   }
@@ -125,6 +162,23 @@ export default function SettingsPage() {
         </button>
 
         {message && <p className="text-sm text-[#8a4b32]">{message}</p>}
+      </div>
+
+      <div className="mt-6 flex flex-col gap-3">
+        <button
+          type="button"
+          onClick={deleteAllHistory}
+          className="rounded-full border border-[#e4d9c8] bg-white px-5 py-2.5 text-sm"
+        >
+          {t.deleteAll}
+        </button>
+        <button
+          type="button"
+          onClick={resetProfile}
+          className="rounded-full border border-[#e7c7b8] bg-[#fff7f3] px-5 py-2.5 text-sm text-[#8a4b32]"
+        >
+          {t.resetProfile}
+        </button>
       </div>
     </div>
   )
