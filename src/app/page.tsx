@@ -1,14 +1,22 @@
 'use client'
 
 import { useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
 export default function Home() {
   const [result, setResult] = useState<any>(null)
   const [loading, setLoading] = useState(false)
 
-  const generate = async () => {
+    const generate = async () => {
     setLoading(true)
-    const res = await fetch('/api/digest', { method: 'POST' })
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    const res = await fetch('/api/digest', { 
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: user?.id })
+    })
     const data = await res.json()
     setResult(data)
     setLoading(false)

@@ -7,34 +7,24 @@ const groq = new OpenAI({
   baseURL: 'https://api.groq.com/openai/v1',
 })
 
-export async function POST() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+export async function POST(request: Request) {
+  const body = await request.json()
+  const userId = body.userId
 
-    let profile
-  if (user) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, language, topics')
-      .eq('id', user.id)
-      .single()
-    console.log('Logged-in user query:', { data, error, userId: user.id })
-    profile = data
-  } else {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, language, topics')
-      .limit(1)
-    console.log('Cron query:', { data, error })
-    profile = data?.[0]
+  if (!userId) {
+    return NextResponse.json({ error: 'No userId' }, { status: 400 })
   }
 
-   if (!profile) {
-    return NextResponse.json({ 
-      error: 'No profile found',
-      user: user ? user.id : null,
-      debug: 'Check if you are logged in and have a profile'
-    }, { status: 400 })
+  const supabase = await createClient()
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id, language, topics')
+    .eq('id', userId)
+    .single()
+
+  if (!profile) {
+    return NextResponse.json({ error: 'No profile found' }, { status: 400 })
   }
 
   const topics = profile.topics?.join(', ') || 'tech, AI'
