@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'crypto'
 import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { Resend } from 'resend'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 
 const groq = new OpenAI({
@@ -22,17 +23,35 @@ function isCron(request: Request) {
   return timingSafeEqual(a, b)
 }
 
+function adminClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) return null
+  return createAdminClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+}
+
 async function handle(request: Request) {
-  const supabase = await createClient()
+  const cookieClient = await createClient()
+  const cron = isCron(request)
 
   let targetUserId: string | null = null
+  let supabase: { from: (table: string) => any }
 
-  if (!isCron(request)) {
-    const { data: { user } } = await supabase.auth.getUser()
+  if (cron) {
+    const admin = adminClient()
+    if (!admin) {
+      return NextResponse.json({ error: 'Missing SUPABASE_SERVICE_ROLE_KEY' }, { status: 500 })
+    }
+    supabase = admin
+  } else {
+    const { data: { user } } = await cookieClient.auth.getUser()
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     targetUserId = user.id
+    supabase = cookieClient
   }
 
   let query = supabase

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
+import { createClient } from '@/lib/supabase/server'
 
 const groq = new OpenAI({
   apiKey: process.env.GROQ_API_KEY,
@@ -7,7 +8,16 @@ const groq = new OpenAI({
 })
 
 export async function POST(request: Request) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const { title, summary } = await request.json()
+  if (!title || !summary) {
+    return NextResponse.json({ error: 'Missing title or summary' }, { status: 400 })
+  }
 
   const prompt = `Expand this news item into a longer, detailed article (3-4 paragraphs). 
   Include 2-3 realistic source references with website names.

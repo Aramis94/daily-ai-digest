@@ -7,14 +7,17 @@ const groq = new OpenAI({
   baseURL: 'https://api.groq.com/openai/v1',
 })
 
-export async function POST(request: Request) {
-  const { userId } = await request.json()
+export async function POST() {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
   const { data: profile } = await supabase
     .from('profiles')
     .select('learning_language, language_level, language')
-    .eq('id', userId)
+    .eq('id', user.id)
     .single()
 
   if (!profile) {
@@ -24,15 +27,15 @@ export async function POST(request: Request) {
   const targetLang = profile.learning_language || 'hungarian'
   const appLang = profile.language || 'hungarian'
 
-  const targetName = targetLang === 'hungarian' ? 'Hungarian' : 
-                     targetLang === 'german' ? 'German' : 
-                     targetLang === 'spanish' ? 'Spanish' : 
-                     targetLang === 'french' ? 'French' : 
-                     targetLang === 'italian' ? 'Italian' : 
+  const targetName = targetLang === 'hungarian' ? 'Hungarian' :
+                     targetLang === 'german' ? 'German' :
+                     targetLang === 'spanish' ? 'Spanish' :
+                     targetLang === 'french' ? 'French' :
+                     targetLang === 'italian' ? 'Italian' :
                      targetLang === 'japanese' ? 'Japanese' : 'English'
 
-  const appName = appLang === 'hungarian' ? 'Hungarian' : 
-                  appLang === 'german' ? 'German' : 
+  const appName = appLang === 'hungarian' ? 'Hungarian' :
+                  appLang === 'german' ? 'German' :
                   appLang === 'spanish' ? 'Spanish' : 'English'
 
   const lessonPrompt = `Teach one useful thing in ${targetName} for a learner whose interface language is ${appName}. 
