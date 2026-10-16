@@ -32,15 +32,19 @@ export default function Home() {
   const [appLanguage, setAppLanguage] = useState('hungarian')
   const [learningLanguage, setLearningLanguage] = useState('hungarian')
   const [languageLevel, setLanguageLevel] = useState('A2')
+  const [today, setToday] = useState('')
   const supabase = createClient()
 
   const t = translations[appLanguage as keyof typeof translations] || translations.hungarian
-  const today = new Date().toLocaleDateString(locales[appLanguage] || 'hu-HU', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
+
+  useEffect(() => {
+    setToday(new Date().toLocaleDateString(locales[appLanguage] || 'hu-HU', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    }))
+  }, [appLanguage])
 
   useEffect(() => {
     const loadLatest = async () => {

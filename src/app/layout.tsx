@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { Suspense } from 'react'
 import { Fraunces, Outfit } from 'next/font/google'
 import './globals.css'
 import Navbar from '@/components/Navbar'
@@ -26,7 +27,9 @@ export default function RootLayout({
   return (
     <html lang="hu" className={`${outfit.variable} ${fraunces.variable}`}>
       <body className="min-h-screen antialiased">
-        <Navbar />
+        <Suspense fallback={<div className="h-14 border-b border-[#e4d9c8]/80" />}>
+          <Navbar />
+        </Suspense>
         <main>{children}</main>
       </body>
     </html>
