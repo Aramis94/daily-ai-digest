@@ -72,31 +72,43 @@ export async function POST(request: Request) {
         language_lesson: lesson,
       })
 
-      let emailResult = 'not attempted'
       if (profile.email_notifications) {
-        const newsHtml = news.items?.map((item: any) => 
-          `<h3>${item.title}</h3><p>${item.summary}</p><p><em>${item.why}</em></p>`
-        ).join('') || ''
+        const { data: userData } = await supabase.auth.admin.getUserById(profile.id)
+        const email = userData?.user?.email
 
-        const { data, error } = await resend.emails.send({
-          from: 'Daily Digest <onboarding@resend.dev>',
-          to: 'nw940417@gmail.com',
-          subject: 'A mai Daily AI Digest',
-          html: `
-            <h2>Hírek</h2>
-            ${newsHtml}
-            <h2>Nyelvlecke</h2>
-            <p><strong>${lesson.word}</strong></p>
-            <p><em>${lesson.example}</em></p>
-            <p>${lesson.explanation}</p>
-          `,
-        })
+        if (email) {
+          const titles = news.items?.map((item: any) => `<li>${item.title}</li>`).join('') || '<li>Nincs hír</li>'
 
-        emailResult = error ? `Error: ${JSON.stringify(error)}` : `Sent: ${JSON.stringify(data)}`
-        console.log('Resend response:', emailResult)
+          await resend.emails.send({
+            from: 'Daily Digest <onboarding@resend.dev>',
+            to: email,
+            subject: 'A mai Daily AI Digest kész',
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #1a73e8;">Daily AI Digest</h2>
+                <p>A mai digeszted elkészült a következő témákban: <strong>${topics}</strong></p>
+                
+                <h3>Hírek címei</h3>
+                <ul>
+                  ${titles}
+                </ul>
+
+                <h3>Napi nyelvlecke</h3>
+                <p><strong>${lesson.word}</strong></p>
+
+                <p style="margin-top: 24px;">
+                  <a href="https://daily-ai-digest-indol.vercel.app" 
+                     style="background: #1a73e8; color: white; padding: 10px 16px; text-decoration: none; border-radius: 6px;">
+                    Megnézem a teljes digesztet
+                  </a>
+                </p>
+              </div>
+            `,
+          })
+        }
       }
 
-      results.push({ userId: profile.id, status: 'ok', email: emailResult })
+      results.push({ userId: profile.id, status: 'ok' })
     } catch (err: any) {
       results.push({ userId: profile.id, status: 'error', message: err.message })
     }
