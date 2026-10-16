@@ -72,4 +72,47 @@ export default function SettingsPage() {
         <label className="block text-sm font-medium mb-1">Nyelv</label>
         <select
           value={language}
-          onChange={(e) => 
+          onChange={(e) => setLanguage(e.target.value)}
+          className="border p-2 w-full rounded"
+        >
+          <option value="hungarian">Magyar</option>
+          <option value="english">Angol</option>
+          <option value="german">Német</option>
+          <option value="spanish">Spanyol</option>
+        </select>
+      </div>
+
+      <div className="mb-6">
+        <label className="block text-sm font-medium mb-1">Témák (vesszővel elválasztva)</label>
+        <input
+          type="text"
+          value={topics}
+          onChange={(e) => setTopics(e.target.value)}
+          placeholder="pl. AI, tech, tudomány, sport"
+          className="border p-2 w-full rounded"
+        />
+      </div>
+
+      <div className="mb-6">
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={emailNotifications}
+            onChange={(e) => setEmailNotifications(e.target.checked)}
+          />
+          <span>Email értesítés a napi digestről</span>
+        </label>
+      </div>
+
+      <button
+        onClick={handleSave}
+        disabled={saving}
+        className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50"
+      >
+        {saving ? 'Mentés...' : 'Mentés'}
+      </button>
+
+      {message && <p className="mt-4 text-sm">{message}</p>}
+    </div>
+  )
+}
