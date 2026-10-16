@@ -20,6 +20,7 @@ export default function Navbar() {
         <Link href="/" className="font-bold text-lg">Daily Digest</Link>
         <Link href="/" className="text-gray-600 hover:text-black">Főoldal</Link>
         <Link href="/settings" className="text-gray-600 hover:text-black">Beállítások</Link>
+        <Link href="/history" className="text-gray-600 hover:text-black">Előzmények</Link>
       </div>
       <button
         onClick={handleLogout}
