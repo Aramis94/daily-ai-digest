@@ -42,10 +42,15 @@ export async function POST(request: Request) {
     const topics = profile.topics?.join(', ') || 'tech, AI'
     const language = profile.language || 'hungarian'
 
+    const languageName = language === 'hungarian' ? 'Hungarian' : 
+                         language === 'german' ? 'German' : 
+                         language === 'spanish' ? 'Spanish' : 'English'
+
     const newsPrompt = `Give me 3 short, interesting news summaries about: ${topics}. 
+    Write the titles and summaries in ${languageName}.
     Format as JSON: {"items": [{"title": "...", "summary": "...", "why": "..."}]}`
 
-    const lessonPrompt = `Teach one useful thing in ${language} language. 
+    const lessonPrompt = `Teach one useful thing in ${languageName} language. 
     Include: a word/phrase, example sentence, and short explanation. 
     Format as JSON: {"word": "...", "example": "...", "explanation": "..."}`
 
