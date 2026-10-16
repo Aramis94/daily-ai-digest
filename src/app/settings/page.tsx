@@ -72,18 +72,4 @@ export default function SettingsPage() {
         <label className="block text-sm font-medium mb-1">Nyelv</label>
         <select
           value={language}
-          onChange={(e) => setLanguage(e.target.value)}
-          className="border p-2 w-full rounded"
-        >
-          <option value="hungarian">Magyar</option>
-          <option value="english">Angol</option>
-          <option value="german">Német</option>
-          <option value="spanish">Spanyol</option>
-        </select>
-      </div>
-
-      <div className="mb-6">
-        <label className="block text-sm font-medium mb-1">Témák (vesszővel elválasztva)</label>
-        <input
-          type="text"
-          value={topics}
+          onChange={(e) => 
