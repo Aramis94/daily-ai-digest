@@ -84,7 +84,7 @@ export async function POST(request: Request) {
 
           await resend.emails.send({
             from: 'Daily Digest <onboarding@resend.dev>',
-            to: nw940417@gmail.com,
+            to: 'nw940417@gmail.com',
             subject: 'A mai Daily AI Digest',
             html: `
               <h2>Hírek</h2>
