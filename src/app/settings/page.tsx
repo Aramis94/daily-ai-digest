@@ -1,7 +1,7 @@
 'use client'
 
 // Beállítások. A profiles tábla nyelv, témák és email mezőit menti.
-// Mentés után mindig meghívja a /api/digest végpontot, tehát új híreket generál.
+// Mentés után csak akkor hívja a /api/digest végpontot, ha a nyelv vagy a témák változtak.
 // Az összes előzmény törlése csak a digesteket viszi. A profil visszaállítása a témákat és a pontokat is alapra teszi.
 // Ezt hívja: src/lib/supabase/client.ts, src/lib/translations.ts és POST /api/digest.
 // Ezt hívja meg: a menü Beállítások linkje.
@@ -19,6 +19,8 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
+  const [savedLanguage, setSavedLanguage] = useState('hungarian')
+  const [savedTopics, setSavedTopics] = useState('')
   const supabase = createClient()
   const router = useRouter()
 
@@ -40,8 +42,12 @@ export default function SettingsPage() {
         .single()
 
       if (data) {
-        setLanguage(data.language === 'spanish' ? 'hungarian' : (data.language || 'hungarian'))
-        setTopics((data.topics || []).join(', '))
+        const nextLanguage = data.language === 'spanish' ? 'hungarian' : (data.language || 'hungarian')
+        const nextTopics = (data.topics || []).join(', ')
+        setLanguage(nextLanguage)
+        setSavedLanguage(nextLanguage)
+        setTopics(nextTopics)
+        setSavedTopics(nextTopics)
         setEmailNotifications(data.email_notifications ?? true)
       }
       setLoading(false)
@@ -49,18 +55,23 @@ export default function SettingsPage() {
     loadProfile()
   }, [supabase, router])
 
-  // Profil mentése, majd új digest generálása és az oldal újratöltése.
+  // Profil mentése. Új digest csak nyelv- vagy témaváltozáskor készül.
   const handleSave = async () => {
     setSaving(true)
     setMessage('')
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) {
+      setSaving(false)
+      return
+    }
 
     const topicsArray = topics
       .split(',')
       .map(topic => topic.trim())
       .filter(topic => topic.length > 0)
       .slice(0, 12)
+    const topicsText = topicsArray.join(', ')
+    const contentChanged = language !== savedLanguage || topicsText !== savedTopics
 
     const { error } = await supabase
       .from('profiles')
@@ -72,7 +83,7 @@ export default function SettingsPage() {
       .eq('id', user.id)
 
     if (!error) {
-      await fetch('/api/digest', { method: 'POST' })
+      if (contentChanged) await fetch('/api/digest', { method: 'POST' })
       window.location.reload()
     } else {
       setMessage(error.message)

@@ -1,7 +1,7 @@
 'use client'
 
 // Felső menü. Csak bejelentkezve látszik, a /login oldalon nem.
-// Oldalváltáskor lekéri a profiles.language mezőt, és arra fordítja a menüt.
+// Belépés után egyszer olvassa a profiles.language mezőt, és arra fordítja a menüt.
 // A böngészőfül címét is az app nevére állítja.
 // Ezt hívja: src/lib/supabase/client.ts (profiles.language) és src/lib/translations.ts.
 // Ezt hívja meg: src/app/layout.tsx. API végpontot nem hív.
@@ -21,7 +21,7 @@ export default function Navbar() {
 
   const t = translations[appLanguage as keyof typeof translations] || translations.hungarian
 
-  // Oldalváltáskor újraolvassa a profiles.language mezőt.
+  // Egyszer olvassa a nyelvet. A beállítások mentése úgyis újratölti az oldalt.
   useEffect(() => {
     const loadLanguage = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -33,12 +33,12 @@ export default function Navbar() {
         .eq('id', user.id)
         .single()
 
-      if (data?.language) {
+      if (data?.language && data.language !== 'spanish') {
         setAppLanguage(data.language)
       }
     }
     loadLanguage()
-  }, [pathname])
+  }, [])
   
   // A böngészőfül címe az aktuális nyelv appName szövege.
   useEffect(() => {

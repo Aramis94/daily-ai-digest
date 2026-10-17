@@ -1,7 +1,7 @@
 'use client'
 
 // Belépés és regisztráció. A nyelv gomb a login_lang sütibe ment, és a profiles.language mezőbe is.
-// Sikeres belépés után a /api/translate-digests végpont lefordítja a legutóbbi hírt, majd a főoldalra lép.
+// Sikeres belépés után csak akkor fordítja a legutóbbi hírt, ha a választott nyelv eltér a mentettől.
 // Ezt hívja: src/lib/supabase/client.ts, src/lib/translations.ts, POST /api/translate-digests.
 // Ezt hívja meg: a proxy.ts, ha nincs belépve, és a Navbar kijelentkezése.
 
@@ -47,7 +47,7 @@ export default function LoginPage() {
     setLang(language)
   }
 
-  // Belépés, nyelv mentése a profiles táblába, legutóbbi hír fordítása, majd teljes újratöltés a főoldalra.
+  // Belépés, nyelv mentése. Fordítás csak akkor, ha a nyelv változott. Utána a főoldal.
   async function handleLogin() {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error || !data.user) {
@@ -55,6 +55,13 @@ export default function LoginPage() {
       return
     }
 
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('language')
+      .eq('id', data.user.id)
+      .single()
+
+    const previous = profile?.language === 'spanish' ? 'hungarian' : profile?.language
     saveLoginLanguage(lang)
 
     const { error: updateError } = await supabase
@@ -67,15 +74,17 @@ export default function LoginPage() {
       return
     }
 
-    const translated = await fetch('/api/translate-digests', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ latestOnly: true }),
-    })
-    if (!translated.ok) {
-      const body = await translated.text()
-      setMessage(`${translated.status}: ${body}`)
-      return
+    if (previous !== lang) {
+      const translated = await fetch('/api/translate-digests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ latestOnly: true }),
+      })
+      if (!translated.ok) {
+        const body = await translated.text()
+        setMessage(`${translated.status}: ${body}`)
+        return
+      }
     }
 
     window.location.href = '/'
