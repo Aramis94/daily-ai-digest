@@ -72,17 +72,23 @@ function tag(block: string, name: string) {
 export function parseGoogleNews(xml: string) {
   return xml.split(/<item\b/i).slice(1).map((block) => {
     const source = block.match(/<source\b[^>]*>([\s\S]*?)<\/source>/i)
-    const sourceUrl = block.match(/<source\b[^>]*url="([^"]+)"/i)
+    const sourceName = clampText(source ? decodeXml(source[1]) : "", 80)
     const link = safeHttpsUrl(tag(block, "link")) || safeHttpsUrl(tag(block, "guid"))
-    const title = clampText(tag(block, "title"), 180)
+    let title = clampText(tag(block, "title"), 180)
+    if (sourceName && title.toLowerCase().endsWith(sourceName.toLowerCase())) {
+      title = clampText(title.slice(0, -sourceName.length).replace(/[\s\-–—|:]+$/, ""), 180)
+    }
     return {
       title,
       link,
       excerpt: clampText(tag(block, "description"), 500),
-      sourceName: clampText(source ? decodeXml(source[1]) : "", 80),
-      sourceHome: safeHttpsUrl(sourceUrl?.[1]),
+      sourceName,
     }
   }).filter((item) => item.title && item.link)
+}
+
+export function topicKey(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "topic"
 }
 
 function searchUrl(query: string, language: string | null) {
@@ -126,10 +132,10 @@ function topicChoices(
     return clean && (`${key} ${query}`.toLowerCase().includes(clean))
   })
   const custom = topics.map((topic) => ({
-    key: topic.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "topic",
+    key: topicKey(topic),
     query: topic,
     label: topic,
-    score: prefs[topic.toLowerCase()] || 0,
+    score: prefs[topicKey(topic)] || prefs[topic.toLowerCase()] || 0,
   }))
   const pool = TOPICS.map((topic) => ({
     key: topic.key,

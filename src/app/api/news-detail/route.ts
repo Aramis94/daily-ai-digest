@@ -28,22 +28,10 @@ type NewsItem = {
 }
 type NewsPayload = { items?: NewsItem[]; theme?: string; themeKey?: string }
 
-function cleanSources(sources: { name?: string; url?: string }[] | undefined): Source[] {
-  return (sources || [])
-    .map((source) => {
-      const url = safeHttpsUrl(source.url)
-      const name = clampText(source.name, 120)
-      if (!url || !name) return null
-      return { name, url }
-    })
-    .filter((source): source is Source => source !== null)
-    .slice(0, 5)
-}
-
 function savedSource(item: NewsItem): Source[] {
   const url = safeHttpsUrl(item.sourceUrl)
   const name = clampText(item.sourceName, 80)
-  if (!url || !name) return cleanSources(item.detail?.sources)
+  if (!url || !name) return []
   return [{ name, url }]
 }
 

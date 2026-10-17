@@ -83,6 +83,7 @@ export default function Home() {
   const [freezesLeft, setFreezesLeft] = useState(2)
   const [todayView, setTodayView] = useState(false)
   const [todayLesson, setTodayLesson] = useState(false)
+  const [notice, setNotice] = useState('')
   const supabase = createClient()
   const t = translations[appLanguage as keyof typeof translations] || translations.hungarian
 
@@ -147,6 +148,7 @@ export default function Home() {
   useEffect(() => {
     // Belépés ellenőrzése, profil (nyelv, tanulás, pontok) és a legutóbbi digest.
     const loadLatest = async () => {
+      try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         window.location.href = '/login'
@@ -184,7 +186,9 @@ export default function Home() {
       } else {
         await refreshStreak(user.id)
       }
-      setLoading(false)
+      } finally {
+        setLoading(false)
+      }
     }
     loadLatest()
   }, [supabase])
@@ -253,29 +257,36 @@ export default function Home() {
     }).eq('id', user.id)
   }
 
-  // Új három hírt kér a /api/digest végponttól, majd a legutóbbi sort újraolvassa.
+  // Új öt hírt kér a /api/digest végponttól, majd a legutóbbi sort újraolvassa.
   const generate = async () => {
     setGenerating(true)
-    const { data: { user } } = await supabase.auth.getUser()
+    setNotice('')
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      const res = await fetch('/api/digest', { method: 'POST' })
+      if (!res.ok) {
+        setNotice(t.generateFailed)
+        return
+      }
 
-    await fetch('/api/digest', { method: 'POST' })
+      const { data } = await supabase
+        .from('daily_digests')
+        .select('id, news, language_lesson')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
 
-    const { data } = await supabase
-      .from('daily_digests')
-      .select('id, news, language_lesson')
-      .eq('user_id', user?.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single()
-
-    if (data) {
-      setResult({
-        id: data.id,
-        news: data.news,
-        lesson: data.language_lesson
-      })
+      if (data) {
+        setResult({
+          id: data.id,
+          news: data.news,
+          lesson: data.language_lesson
+        })
+      }
+    } finally {
+      setGenerating(false)
     }
-    setGenerating(false)
   }
 
   // Új szót kér a /api/lesson végponttól, és csak a leckét cseréli a képernyőn.
@@ -321,6 +332,7 @@ export default function Home() {
             {t.appName}
           </h1>
           <p className="mt-2 capitalize text-[#6b645b]">{today}</p>
+          {notice && <p className="mt-2 text-sm text-[#8a4b32]">{notice}</p>}
           <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-[#5e574e]">
             <p className="font-display text-3xl text-[#c4552a]">🔥 {streak}</p>
             <div>

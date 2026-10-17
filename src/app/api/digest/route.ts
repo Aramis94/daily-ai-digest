@@ -11,7 +11,7 @@ import { createClient as createAdminClient } from "@supabase/supabase-js"
 import { createClient } from "@/lib/supabase/server"
 import { rateLimit } from "@/lib/rateLimit"
 import { clampText, clientIp, escapeHtml, languageName, parseModelJson } from "@/lib/text"
-import { loadRealArticles } from "@/lib/googleNews"
+import { loadRealArticles, topicKey } from "@/lib/googleNews"
 import { feedbackPrompt, readPersonalization } from "@/lib/personalization"
 
 const groq = new OpenAI({
@@ -191,7 +191,7 @@ async function generateForProfile(supabase: DigestDb, profile: Profile, email: s
     : customTopics
   const prefs = { ...personal.scores }
   for (const interest of personal.interests) {
-    const key = interest.topic.toLowerCase()
+    const key = topicKey(interest.topic)
     prefs[key] = (prefs[key] || 0) + interest.weight
   }
   const articles = await loadRealArticles(
@@ -206,8 +206,8 @@ async function generateForProfile(supabase: DigestDb, profile: Profile, email: s
 
   const depthOf = (theme: string, themeKey: string) => {
     const match = personal.interests.find((item) => {
-      const name = item.topic.toLowerCase()
-      return name === theme.toLowerCase() || name === themeKey
+      const name = topicKey(item.topic)
+      return name === themeKey || item.topic.toLowerCase() === theme.toLowerCase()
     })
     return match?.level || "intermediate"
   }
