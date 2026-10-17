@@ -13,6 +13,7 @@ import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { translations } from '@/lib/translations'
 import { readPersonalization, savePersonalization } from '@/lib/personalization'
+import { addDays, countStreak, dayCounts, freezesUsed, localDate, weekCount, type Activity } from '@/lib/streak'
 
 const locales: Record<string, string> = {
   hungarian: 'hu-HU',
@@ -76,8 +77,67 @@ export default function Home() {
   const [prefs, setPrefs] = useState<Record<string, number>>({})
   const [itemVotes, setItemVotes] = useState<Record<number, 1 | -1>>({})
   const [reasonFor, setReasonFor] = useState<number | null>(null)
+  const [streak, setStreak] = useState(0)
+  const [lessonStreak, setLessonStreak] = useState(0)
+  const [weekDays, setWeekDays] = useState(0)
+  const [freezesLeft, setFreezesLeft] = useState(2)
+  const [todayView, setTodayView] = useState(false)
+  const [todayLesson, setTodayLesson] = useState(false)
   const supabase = createClient()
   const t = translations[appLanguage as keyof typeof translations] || translations.hungarian
+
+  async function refreshStreak(userId: string) {
+    const today = localDate()
+    const { data, error } = await supabase
+      .from('user_activity')
+      .select('activity_date, did_view_digest, did_complete_lesson, frozen')
+      .eq('user_id', userId)
+      .gte('activity_date', addDays(today, -60))
+    if (error || !data) return
+
+    let rows = data as Activity[]
+    const byDate = new Map(rows.map((row) => [row.activity_date, row]))
+    const yesterday = addDays(today, -1)
+    const before = addDays(today, -2)
+    if (!dayCounts(byDate.get(yesterday), 'any') && dayCounts(byDate.get(before), 'any') && freezesUsed(rows, today) < 2) {
+      const { error: freezeError } = await supabase.from('user_activity').insert({
+        user_id: userId,
+        activity_date: yesterday,
+        did_view_digest: false,
+        did_complete_lesson: false,
+        frozen: true,
+      })
+      if (!freezeError) {
+        rows = [...rows, { activity_date: yesterday, did_view_digest: false, did_complete_lesson: false, frozen: true }]
+      }
+    }
+
+    const todayRow = rows.find((row) => row.activity_date === today)
+    setStreak(countStreak(rows, today, 'any'))
+    setLessonStreak(countStreak(rows, today, 'lesson'))
+    setWeekDays(weekCount(rows, today))
+    setFreezesLeft(Math.max(0, 2 - freezesUsed(rows, today)))
+    setTodayView(Boolean(todayRow?.did_view_digest))
+    setTodayLesson(Boolean(todayRow?.did_complete_lesson))
+  }
+
+  async function markActivity(userId: string, flag: 'did_view_digest' | 'did_complete_lesson') {
+    const today = localDate()
+    const { data } = await supabase
+      .from('user_activity')
+      .select('id, did_view_digest, did_complete_lesson')
+      .eq('user_id', userId)
+      .eq('activity_date', today)
+      .maybeSingle()
+
+    if (!data) {
+      await supabase.from('user_activity').insert({ user_id: userId, activity_date: today, [flag]: true })
+    } else if (!data[flag]) {
+      await supabase.from('user_activity').update({ [flag]: true }).eq('id', data.id)
+    }
+    await refreshStreak(userId)
+  }
+
   const today = useSyncExternalStore(
     () => () => {},
     () => todayLabel(appLanguage),
@@ -120,6 +180,9 @@ export default function Home() {
           news: data.news,
           lesson: data.language_lesson
         })
+        await markActivity(user.id, 'did_view_digest')
+      } else {
+        await refreshStreak(user.id)
       }
       setLoading(false)
     }
@@ -230,6 +293,7 @@ export default function Home() {
           news: prev?.news,
           lesson: data.lesson
         }))
+        await markActivity(user.id, 'did_complete_lesson')
       }
     }
     setLessonLoading(false)
@@ -257,6 +321,16 @@ export default function Home() {
             {t.appName}
           </h1>
           <p className="mt-2 capitalize text-[#6b645b]">{today}</p>
+          <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-[#5e574e]">
+            <p className="font-display text-3xl text-[#c4552a]">🔥 {streak}</p>
+            <div>
+              <p>{streak > 0 ? `${streak} ${t.streakDays}` : t.streakStart}</p>
+              <p>
+                {todayView && todayLesson ? t.todayBoth : todayView || todayLesson ? t.todayDone : t.todayMissing}
+              </p>
+              <p>{t.lessonStreak}: {lessonStreak} · {weekDays}/7 {t.weekGoal} · {freezesLeft} {t.freezesLeft}</p>
+            </div>
+          </div>
         </div>
         <button
           type="button"
