@@ -190,5 +190,97 @@ export async function loadRealArticles(
       searchUrl: searchUrl(feed.topic.query, language),
     })
   }
-  return articles
+
+  return Promise.all(articles.map(async (article) => {
+    const read = await readArticle(article.link)
+    return {
+      ...article,
+      link: read.url || article.link,
+      excerpt: read.text || article.excerpt,
+    }
+  }))
+}
+
+const SIGNATURE = /data-n-a-sg="([^"]+)"/
+const TIMESTAMP = /data-n-a-ts="([^"]+)"/
+
+async function publisherUrl(link: string) {
+  const id = articleId(link)
+  if (!id) return safeHttpsUrl(link)
+  const page = new URL(`https://news.google.com/rss/articles/${id}`)
+  const source = new URL(link)
+  page.searchParams.set("hl", source.searchParams.get("hl") || "en-US")
+  page.searchParams.set("gl", source.searchParams.get("gl") || "US")
+  page.searchParams.set("ceid", source.searchParams.get("ceid") || "US:en")
+
+  const response = await fetch(page, {
+    headers: { "User-Agent": "Mozilla/5.0" },
+    signal: AbortSignal.timeout(8000),
+    redirect: "follow",
+  })
+  if (!response.ok) return null
+  const html = await response.text()
+  const signature = html.match(SIGNATURE)?.[1]
+  const timestamp = html.match(TIMESTAMP)?.[1]
+  if (!signature || !timestamp) return null
+
+  const inner = [
+    "garturlreq",
+    [["X", "X", ["X", "X"], null, null, 1, 1, "US:en", null, 1, null, null, null, null, null, 0, 1], "X", "X", 1, [1, 1, 1], 1, 1, null, 0, 0, null, 0],
+    id,
+    Number(timestamp),
+    signature,
+  ]
+  const decoded = await fetch("https://news.google.com/_/DotsSplashUi/data/batchexecute", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+      "User-Agent": "Mozilla/5.0",
+    },
+    body: `f.req=${encodeURIComponent(JSON.stringify([[["Fbv4je", JSON.stringify(inner), null, "0"]]]))}`,
+    signal: AbortSignal.timeout(8000),
+  })
+  if (!decoded.ok) return null
+  const match = (await decoded.text()).match(/https?:\\?\/\\?\/[^"\\]+/)
+  if (!match) return null
+  return safeHttpsUrl(match[0].replace(/\\\//g, "/"))
+}
+
+function articleId(link: string) {
+  try {
+    const url = new URL(link)
+    const parts = url.pathname.split("/")
+    if (url.hostname !== "news.google.com" || parts.at(-2) !== "articles") return null
+    return parts.at(-1) || null
+  } catch {
+    return null
+  }
+}
+
+function articleText(html: string) {
+  const article = html.match(/<article\b[\s\S]*?<\/article>/i)?.[0] || html
+  const cleaned = article
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
+  const paragraphs = [...cleaned.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi)]
+    .map((match) => decodeXml(match[1]))
+    .filter((paragraph) => paragraph.length > 40)
+  return clampText(paragraphs.slice(0, 8).join(" "), 1800)
+}
+
+export async function readArticle(link: string) {
+  try {
+    const url = await publisherUrl(link)
+    if (!url) return { url: "", text: "" }
+    const response = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; TudasMindenNapra/1.0)", Accept: "text/html" },
+      signal: AbortSignal.timeout(8000),
+      redirect: "follow",
+    })
+    if (!response.ok) return { url, text: "" }
+    return { url, text: articleText(await response.text()) }
+  } catch {
+    return { url: "", text: "" }
+  }
 }

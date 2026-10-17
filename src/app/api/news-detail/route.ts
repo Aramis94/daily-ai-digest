@@ -6,6 +6,7 @@ import OpenAI from "openai"
 import { createClient } from "@/lib/supabase/server"
 import { rateLimit } from "@/lib/rateLimit"
 import { clampText, clientIp, parseModelJson, safeHttpsUrl } from "@/lib/text"
+import { readArticle } from "@/lib/googleNews"
 
 const groq = new OpenAI({
   apiKey: process.env.GROQ_API_KEY,
@@ -76,23 +77,33 @@ export async function POST(request: Request) {
   const sources = savedSource(item)
   const searchUrl = safeHttpsUrl(item.searchUrl)
 
-  if (item.detail?.detailed) {
+  const cached = item.detail?.detailed || ""
+  const unusable = /nem ismerjük|not know the|content is unknown|nicht kennen|fehlen die details/i.test(cached)
+
+  if (cached && !unusable) {
     return NextResponse.json({
       title,
       summary,
-      detailed: item.detail.detailed,
+      detailed: cached,
       sources,
       searchUrl,
     })
   }
 
+  let excerpt = clampText(item.excerpt, 1800)
+  if (excerpt.length < 400 && item.sourceUrl) {
+    const read = await readArticle(item.sourceUrl)
+    if (read.text) excerpt = clampText(read.text, 1800)
+  }
+
   const prompt = `Write a longer explanation of 3-4 paragraphs from the article between the markers.
 Use only these facts. Do not invent names, numbers, quotes, or URLs.
+Never write that the content is unknown, missing, or that details are unavailable.
 Write in the same language as the title.
 <news>
 Title: ${title}
 Summary: ${summary}
-Excerpt: ${clampText(item.excerpt, 500)}
+Excerpt: ${excerpt}
 </news>
 Format as JSON: {"detailed": "..."}`
 

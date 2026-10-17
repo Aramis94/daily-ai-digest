@@ -218,6 +218,8 @@ async function generateForProfile(supabase: DigestDb, profile: Profile, email: s
 
   const newsPrompt = `Summarize each real article between the markers.
 Write in ${outputLanguage}. Use only the facts in that article. Do not add sources or URLs.
+Never write that the content is unknown, missing, or that details are unavailable.
+If the text is short, write two concrete sentences about what the headline says.
 Depth beginner means plain words. intermediate means a normal reader. expert means precise terms.
 Keep the same order and the same number of items.
 ${feedbackPrompt(personal.feedback)}
