@@ -13,7 +13,7 @@ import { createClient } from "@/lib/supabase/client"
 import { translations } from "@/lib/translations"
 
 type Source = { name: string; url: string }
-type DetailView = { title: string; summary: string; detailed: string; sources: Source[] }
+type DetailView = { title: string; summary: string; detailed: string; sources: Source[]; searchUrl?: string | null }
 
 // Csak https link mehet ki a források közül.
 function safeHttps(url: string) {
@@ -147,6 +147,11 @@ function NewsDetailContent() {
               </li>
             ))}
           </ul>
+          {detail?.searchUrl?.startsWith("https://") && (
+            <a href={detail.searchUrl} target="_blank" rel="noopener noreferrer" className="mt-4 inline-block text-sm text-[#8a6a45] hover:underline">
+              {t.searchMore}
+            </a>
+          )}
         </div>
       )}
     </article>

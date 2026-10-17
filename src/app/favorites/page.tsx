@@ -15,6 +15,8 @@ type FavoriteItem = {
   why?: string
   theme?: string
   favorite?: boolean
+  sourceName?: string
+  sourceUrl?: string
 }
 
 type FavoriteRow = {
@@ -103,6 +105,11 @@ export default function FavoritesPage() {
               </button>
             </div>
             <p className="mt-3 leading-relaxed text-[#3f3a34]">{row.item.summary}</p>
+            {row.item.sourceUrl?.startsWith('https://') && (
+              <a href={row.item.sourceUrl} target="_blank" rel="noopener noreferrer" className="mt-3 inline-block text-sm text-[#0f6e6b] hover:underline">
+                {t.source}: {row.item.sourceName || t.sources}
+              </a>
+            )}
             <Link
               href={`/news/${row.index}?digest=${row.digestId}`}
               className="mt-4 inline-flex text-sm font-medium text-[#0f6e6b] hover:underline"

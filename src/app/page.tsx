@@ -37,6 +37,9 @@ type NewsItem = {
   theme?: string
   themeKey?: string
   favorite?: boolean
+  sourceName?: string
+  sourceUrl?: string
+  searchUrl?: string
 }
 
 type Lesson = {
@@ -273,6 +276,26 @@ export default function Home() {
                         {t.readMore}
                         <span aria-hidden>→</span>
                       </Link>
+                      {item.sourceUrl?.startsWith('https://') && (
+                        <a
+                          href={item.sourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm font-medium text-[#0f6e6b] hover:underline"
+                        >
+                          {t.source}: {item.sourceName || t.sources}
+                        </a>
+                      )}
+                      {item.searchUrl?.startsWith('https://') && (
+                        <a
+                          href={item.searchUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-[#8a6a45] hover:underline"
+                        >
+                          {t.searchMore}
+                        </a>
+                      )}
                       {theme && (
                         <span className="rounded-full bg-[#f3e4d8] px-3 py-1 text-sm text-[#8a4b32]">
                           {t.category}: {theme} ({themeScore})

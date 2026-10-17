@@ -17,7 +17,7 @@ const locales: Record<string, string> = {
   german: "de-DE",
 }
 
-type HistoryNews = { title?: string; summary?: string; theme?: string; favorite?: boolean }
+type HistoryNews = { title?: string; summary?: string; theme?: string; favorite?: boolean; sourceName?: string; sourceUrl?: string }
 type HistoryDigest = {
   id: string
   created_at: string
@@ -150,6 +150,11 @@ export default function HistoryPage() {
                   <div>
                     <p className="font-medium">{item.title}</p>
                     <p className="mt-1 text-sm leading-relaxed text-[#5e574e]">{item.summary}</p>
+                    {item.sourceUrl?.startsWith("https://") && (
+                      <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="mt-1 inline-block text-sm text-[#0f6e6b] hover:underline">
+                        {t.source}: {item.sourceName || t.sources}
+                      </a>
+                    )}
                   </div>
                   <span className="text-xl leading-none text-[#c4552a]">{item.favorite ? "★" : ""}</span>
                 </div>
