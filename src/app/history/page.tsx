@@ -17,7 +17,7 @@ const locales: Record<string, string> = {
   german: "de-DE",
 }
 
-type HistoryNews = { title?: string; summary?: string; theme?: string }
+type HistoryNews = { title?: string; summary?: string; theme?: string; favorite?: boolean }
 type HistoryDigest = {
   id: string
   created_at: string
@@ -63,19 +63,47 @@ export default function HistoryPage() {
     load()
   }, [supabase, router])
 
-  // Egy digest törlése a daily_digests táblából, majd kivétel a listáról.
+  // Egy digest törlése. A csillagozott hírek megmaradnak.
   async function removeDigest(id: string) {
-    const { error } = await supabase.from("daily_digests").delete().eq("id", id)
-    if (!error) setDigests((prev) => prev.filter((digest) => digest.id !== id))
+    const digest = digests.find((item) => item.id === id)
+    const favorites = (digest?.news?.items || []).filter((item) => item.favorite)
+    if (favorites.length > 0 && !window.confirm(t.favoritesKept)) return
+    if (favorites.length === 0) {
+      const { error } = await supabase.from("daily_digests").delete().eq("id", id)
+      if (!error) setDigests((prev) => prev.filter((item) => item.id !== id))
+      return
+    }
+    const news = { ...digest?.news, items: favorites }
+    const { error } = await supabase.from("daily_digests").update({ news }).eq("id", id)
+    if (!error) {
+      setDigests((prev) => prev.map((item) => item.id === id ? { ...item, news } : item))
+    }
   }
 
-  // Megerősítés után a felhasználó minden digestje törlődik. A profil és a pontok megmaradnak.
+  // Megerősítés után minden nem kedvenc hír törlődik. A csillagozottak megmaradnak.
   async function deleteAllHistory() {
-    if (!window.confirm(t.deleteAllConfirm)) return
+    if (!window.confirm(t.favoritesKept)) return
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const { error } = await supabase.from("daily_digests").delete().eq("user_id", user.id)
-    if (!error) setDigests([])
+    const { data } = await supabase
+      .from("daily_digests")
+      .select("id, news")
+      .eq("user_id", user.id)
+    for (const row of data || []) {
+      const favorites = (row.news?.items || []).filter((item: HistoryNews) => item.favorite)
+      if (favorites.length === 0) {
+        await supabase.from("daily_digests").delete().eq("id", row.id)
+      } else if (favorites.length !== (row.news?.items || []).length) {
+        await supabase.from("daily_digests").update({ news: { ...row.news, items: favorites } }).eq("id", row.id)
+      }
+    }
+    const { data: left } = await supabase
+      .from("daily_digests")
+      .select("id, created_at, news, language_lesson")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(80)
+    setDigests(left || [])
   }
 
   if (loading) {
@@ -118,9 +146,12 @@ export default function HistoryPage() {
             <h2 className="font-display mt-4 text-xl">{t.news}</h2>
             <div className="mt-3 space-y-4">
               {digest.news?.items?.map((item, i) => (
-                <div key={i}>
-                  <p className="font-medium">{item.title}</p>
-                  <p className="mt-1 text-sm leading-relaxed text-[#5e574e]">{item.summary}</p>
+                <div key={i} className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-medium">{item.title}</p>
+                    <p className="mt-1 text-sm leading-relaxed text-[#5e574e]">{item.summary}</p>
+                  </div>
+                  <span className="text-xl leading-none text-[#c4552a]">{item.favorite ? "★" : ""}</span>
                 </div>
               ))}
             </div>

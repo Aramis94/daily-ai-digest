@@ -1,5 +1,5 @@
 // Hírgenerálás. POST: a bejelentkezett felhasználó gombja. GET: a Vercel napi cronja, titkos kulccsal.
-// A Groq három hírt ír, különböző kategóriából. Az eredmény a daily_digests táblába kerül.
+// A Groq öt hírt ír, különböző kategóriából. Az eredmény a daily_digests táblába kerül.
 // Utána a 30 napnál régebbi és a 200 hír feletti legrégebbi sorok törlődnek. Ha az email be van kapcsolva, a Resend levelet küld.
 // Ezt hívja: src/lib/supabase/server.ts, src/lib/rateLimit.ts, src/lib/text.ts, a Groq és a Resend.
 // Ezt hívja meg: src/app/page.tsx generálógombja, src/app/settings/page.tsx mentése, és a vercel.json napi cronja (GET).
@@ -19,7 +19,7 @@ const groq = new OpenAI({
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
-type NewsItem = { title?: string; summary?: string; why?: string; theme?: string; themeKey?: string }
+type NewsItem = { title?: string; summary?: string; why?: string; theme?: string; themeKey?: string; favorite?: boolean }
 type NewsPayload = { items?: NewsItem[]; theme?: string; themeKey?: string }
 type Profile = {
   id: string
@@ -28,11 +28,12 @@ type Profile = {
   email_notifications: boolean | null
   topic_prefs: Record<string, number> | null
 }
-type StoredDigest = { id: string; news?: { items?: NewsItem[]; themeKey?: string } | null }
+type StoredDigest = { id: string; created_at?: string; news?: { items?: NewsItem[]; theme?: string; themeKey?: string } | null }
 type DigestDb = {
   from: (table: string) => {
     select: (columns: string) => Query
     insert: (values: Record<string, unknown>) => Promise<{ error: { message: string } | null }>
+    update: (values: Record<string, unknown>) => Query
     delete: () => Query
   }
 }
@@ -120,33 +121,50 @@ async function recentContext(supabase: DigestDb, userId: string) {
   }
 }
 
-// Törli a 30 napnál régebbi sorokat, és ha 200-nál több hír van, a legrégebbieket.
+// A 30 napnál régebbi és a 200 hír feletti sorokból kiveszi a nem kedvenc híreket. A csillagozott hír megmarad.
 async function trimUserDigests(supabase: DigestDb, userId: string) {
   const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-  await supabase.from("daily_digests").delete().eq("user_id", userId).lt("created_at", cutoff)
-
   const { data } = await supabase
     .from("daily_digests")
-    .select("id, news")
+    .select("id, created_at, news")
     .eq("user_id", userId)
     .order("created_at", { ascending: true }) as { data: StoredDigest[] | null }
 
   const rows = data || []
-  let total = rows.reduce((sum, row) => sum + (row.news?.items?.length || 0), 0)
-  const ids: string[] = []
 
-  for (const row of rows) {
-    if (total <= 200) break
-    ids.push(row.id)
-    total -= row.news?.items?.length || 0
+  const keep = async (row: StoredDigest) => {
+    const items = row.news?.items || []
+    const favorites = items.filter((item) => item.favorite)
+    if (favorites.length === items.length) return items.length
+    if (favorites.length === 0) {
+      await supabase.from("daily_digests").delete().eq("id", row.id).eq("user_id", userId)
+      row.news = { ...row.news, items: [] }
+      return 0
+    }
+    await supabase
+      .from("daily_digests")
+      .update({ news: { ...row.news, items: favorites } })
+      .eq("id", row.id)
+      .eq("user_id", userId)
+    row.news = { ...row.news, items: favorites }
+    return favorites.length
   }
 
-  if (ids.length > 0) {
-    await supabase.from("daily_digests").delete().in("id", ids).eq("user_id", userId)
+  for (const row of rows) {
+    if ((row.created_at || "") < cutoff) await keep(row)
+  }
+
+  let total = rows.reduce((sum, row) => sum + (row.news?.items?.length || 0), 0)
+  for (const row of rows) {
+    if (total <= 200) break
+    const before = row.news?.items?.length || 0
+    if (before === 0) continue
+    const after = await keep(row)
+    total -= before - after
   }
 }
 
-// Groq hívás: három hír, három kategória. Mentés a daily_digests táblába, takarítás, majd opcionális email.
+// Groq hívás: öt hír, öt kategória. Mentés a daily_digests táblába, takarítás, majd opcionális email.
 async function generateForProfile(supabase: DigestDb, profile: Profile, email: string | null) {
   const customTopics = (profile.topics || [])
     .map((topic) => clampText(topic, 40))
@@ -156,17 +174,17 @@ async function generateForProfile(supabase: DigestDb, profile: Profile, email: s
   const outputLanguage = languageName(profile.language)
 
   const topicInstruction = customTopics.length
-    ? `Stay inside the topics between the markers, but the 3 items must still be 3 different categories.
+    ? `Stay inside the topics between the markers, but the 5 items must still be 5 different categories.
 <topics>
 ${customTopics.join(", ")}
 </topics>`
     : `The user set no topics.
-Pick 3 fields that are different from each other and different from the recent categories.
+Pick 5 fields that are different from each other and different from the recent categories.
 Choose from fields such as nature, history, space, food, music, sport, cities, animals, health, oceans, architecture, inventions, climate, or culture.
 Do not default to technology or AI unless a positive preference asks for it.`
 
-  const newsPrompt = `Give me exactly 3 short, interesting news summaries.
-Each item must belong to a different category. The three themeKey values must be three different lowercase English words.
+  const newsPrompt = `Give me exactly 5 short, interesting news summaries.
+Each item must belong to a different category. The five themeKey values must be five different lowercase English words.
 ${topicInstruction}
 Prefer categories with a positive score more often. Use categories with a negative score less often.
 Scores run from -10 to 10. A positive score may repeat a recent category. Otherwise avoid the recent categories.
@@ -192,7 +210,7 @@ Format as JSON: {"items": [{"title": "...", "summary": "...", "why": "...", "the
     })
     const parsed = parseModelJson<NewsPayload>(newsRes.choices[0].message.content)
     const keys = (parsed?.items || []).map((item) => clampText(item.themeKey, 40).toLowerCase()).filter(Boolean)
-    if (parsed?.items?.length === 3 && new Set(keys).size === 3) news = parsed
+    if (parsed?.items?.length === 5 && new Set(keys).size === 5) news = parsed
   }
   if (!news?.items) return false
 

@@ -36,6 +36,7 @@ type NewsItem = {
   why?: string
   theme?: string
   themeKey?: string
+  favorite?: boolean
 }
 
 type Lesson = {
@@ -144,6 +145,16 @@ export default function Home() {
     await supabase.from('profiles').update({ topic_prefs: next }).eq('id', user.id)
   }
 
+  async function toggleFavorite(index: number) {
+    if (!result?.id || !result.news?.items) return
+    const items = result.news.items.map((item, i) => (
+      i === index ? { ...item, favorite: !item.favorite } : item
+    ))
+    const news = { ...result.news, items }
+    const { error } = await supabase.from('daily_digests').update({ news }).eq('id', result.id)
+    if (!error) setResult({ ...result, news })
+  }
+
   // Új három hírt kér a /api/digest végponttól, majd a legutóbbi sort újraolvassa.
   const generate = async () => {
     setGenerating(true)
@@ -237,9 +248,19 @@ export default function Home() {
                     <p className="font-display text-sm text-[#c4552a]">
                       {String(i + 1).padStart(2, '0')}
                     </p>
-                    <h3 className="font-display mt-1 text-2xl leading-snug tracking-tight">
-                      {item.title}
-                    </h3>
+                    <div className="mt-1 flex items-start justify-between gap-3">
+                      <h3 className="font-display text-2xl leading-snug tracking-tight">
+                        {item.title}
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={() => toggleFavorite(i)}
+                        aria-label={t.favorites}
+                        className="text-2xl leading-none text-[#c4552a]"
+                      >
+                        {item.favorite ? '★' : '☆'}
+                      </button>
+                    </div>
                     <p className="mt-3 leading-relaxed text-[#3f3a34]">{item.summary}</p>
                     {item.why && (
                       <p className="mt-3 text-sm italic text-[#6b645b]">{item.why}</p>

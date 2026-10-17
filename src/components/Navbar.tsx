@@ -56,6 +56,7 @@ export default function Navbar() {
 
   const links = [
     { href: '/', label: t.home },
+    { href: '/favorites', label: t.favorites },
     { href: '/history', label: t.history },
     { href: '/settings', label: t.settings },
   ]

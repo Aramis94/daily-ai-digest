@@ -91,13 +91,22 @@ export default function SettingsPage() {
     setSaving(false)
   }
 
-  // Csak az előzményeket törli. A témák és a kategóriapontok megmaradnak.
+  // Csak a nem kedvenc híreket törli. A csillagozottak megmaradnak.
   const deleteAllHistory = async () => {
-    if (!window.confirm(t.deleteAllConfirm)) return
+    if (!window.confirm(t.favoritesKept)) return
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const { error } = await supabase.from('daily_digests').delete().eq('user_id', user.id)
-    setMessage(error ? error.message : t.historyEmpty)
+    const { data } = await supabase.from('daily_digests').select('id, news').eq('user_id', user.id)
+    for (const row of data || []) {
+      const items = row.news?.items || []
+      const favorites = items.filter((item: { favorite?: boolean }) => item.favorite)
+      if (favorites.length === 0) {
+        await supabase.from('daily_digests').delete().eq('id', row.id)
+      } else if (favorites.length !== items.length) {
+        await supabase.from('daily_digests').update({ news: { ...row.news, items: favorites } }).eq('id', row.id)
+      }
+    }
+    setMessage(t.favoritesKept)
   }
 
   // Előzmények törlése, témák és pontok ürítése, tanulási nyelv magyar, szint A2. Az app nyelve marad.
