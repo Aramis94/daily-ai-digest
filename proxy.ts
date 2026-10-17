@@ -1,6 +1,9 @@
+// Minden oldalkérés előtt fut. Frissíti a Supabase sütit, és belépés nélkül a /login oldalra küld.
+// A /login, /auth és /api útvonalak nyilvánosak maradnak.
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 
+// Süti frissítés, majd belépés ellenőrzés. Vendéget a loginra küld, a statikus fájlokat a matcher kihagyja.
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,

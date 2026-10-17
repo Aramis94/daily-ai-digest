@@ -1,7 +1,10 @@
+// Supabase email-visszaigazolás fogadója. A kapott kódot munkamenetté cseréli, majd a next címre küld.
+// Hibánál a /login?error=auth oldalra visz.
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { safeNextPath } from "@/lib/text"
 
+// Az emailben kapott code paramétert sessionné cseréli a Supabase-nél.
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get("code")

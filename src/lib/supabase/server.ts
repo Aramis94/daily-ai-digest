@@ -1,3 +1,4 @@
+// Szerveres Supabase kliens az API végpontokhoz. A belépési sütit olvassa, így tudja, ki a felhasználó.
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 

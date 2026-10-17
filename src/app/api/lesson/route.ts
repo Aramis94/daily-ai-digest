@@ -1,3 +1,5 @@
+// Új nyelvlecke. A profiles tanulási nyelvét és szintjét olvassa, a Groq egy szót és példát ad.
+// A legutóbbi digest language_lesson mezőjébe menti. Ha még nincs digest, üres hírrel létrehoz egyet.
 import { NextResponse } from "next/server"
 import OpenAI from "openai"
 import { createClient } from "@/lib/supabase/server"
@@ -11,6 +13,7 @@ const groq = new OpenAI({
 
 type Lesson = { word?: string; example?: string; explanation?: string }
 
+// Belépett felhasználó leckéje. Groq, majd a legutóbbi digest frissítése vagy új sor.
 export async function POST(request: Request) {
   if (!rateLimit(clientIp(request), 5, 60_000)) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 })

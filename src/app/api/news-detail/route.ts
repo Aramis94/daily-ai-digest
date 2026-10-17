@@ -1,3 +1,5 @@
+// Hosszabb cikk egy hírhez. A digestet és a hír sorszámát kapja, a címet az adatbázisból olvassa.
+// Ha már van detail, azt adja vissza Groq nélkül. Különben generál, és visszaírja a hír detail mezőjébe.
 import { NextResponse } from "next/server"
 import OpenAI from "openai"
 import { createClient } from "@/lib/supabase/server"
@@ -21,6 +23,7 @@ type NewsItem = {
 }
 type NewsPayload = { items?: NewsItem[]; theme?: string; themeKey?: string }
 
+// A modell forrásai közül csak a valódi https linkek maradnak, legfeljebb öt.
 function cleanSources(sources: { name?: string; url?: string }[] | undefined): Source[] {
   return (sources || [])
     .map((source) => {
@@ -33,6 +36,7 @@ function cleanSources(sources: { name?: string; url?: string }[] | undefined): S
     .slice(0, 5)
 }
 
+// Ha a hír detail mezője már tele van, azt adja vissza. Különben a Groq írja meg, és a digestbe menti.
 export async function POST(request: Request) {
   if (!rateLimit(clientIp(request), 8, 60_000)) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 })

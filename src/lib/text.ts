@@ -1,3 +1,9 @@
+// Közös szövegsegédek az API-knak.
+// languageName: a profiles nyelvkódját a Groq prompt nyelvére fordítja.
+// clampText: levágja és megtisztítja a felhasználótól vagy a modelltől jövő szöveget.
+// escapeHtml: emailbe tett szöveg, hogy ne lehessen HTML-t injektálni.
+// clientIp: a korláthoz használt IP. safeNextPath: csak saját oldali átirányítást enged.
+// safeHttpsUrl: csak sima https linket enged a forrásoknál. parseModelJson: a Groq JSON válaszát olvassa.
 const LANGUAGE_NAMES: Record<string, string> = {
   hungarian: "Hungarian",
   english: "English",
@@ -11,10 +17,12 @@ const LANGUAGE_NAMES: Record<string, string> = {
   chinese: "Chinese",
 }
 
+// hungarian -> Hungarian, és társai. Ismeretlen kódnál angol.
 export function languageName(code: string | null | undefined) {
   return LANGUAGE_NAMES[code || ""] || "English"
 }
 
+// Vezérlőkarakterek kiszedése, szóközök összehúzása, max hossz.
 export function clampText(input: unknown, max: number) {
   return String(input ?? "")
     .replace(/[\u0000-\u001F\u007F]/g, " ")
@@ -23,6 +31,7 @@ export function clampText(input: unknown, max: number) {
     .slice(0, max)
 }
 
+// Email HTML-be kerülő szöveg ártalmatlanítása.
 export function escapeHtml(value: string) {
   return value
     .replace(/&/g, "\u0026amp;")
@@ -32,6 +41,7 @@ export function escapeHtml(value: string) {
     .replace(/'/g, "\u0026#39;")
 }
 
+// A hívó IP-je a Vercel fejléceiből, a korláthoz.
 export function clientIp(request: Request) {
   return (
     request.headers.get("x-real-ip")?.trim() ||
@@ -40,6 +50,7 @@ export function clientIp(request: Request) {
   )
 }
 
+// Átirányítás csak / kezdetű saját útvonalra mehet, külső címre nem.
 export function safeNextPath(next: string | null) {
   if (!next || !next.startsWith("/") || next.startsWith("//") || next.includes("\\") || next.includes("://")) {
     return "/"
@@ -47,6 +58,7 @@ export function safeNextPath(next: string | null) {
   return next
 }
 
+// Forráslink: csak https, felhasználónév és jelszó nélkül.
 export function safeHttpsUrl(value: unknown) {
   try {
     const url = new URL(String(value))
@@ -57,6 +69,7 @@ export function safeHttpsUrl(value: unknown) {
   }
 }
 
+// A Groq szöveges JSON válaszát objektummá alakítja. Hibás válasznál null.
 export function parseModelJson<T>(raw: string | null | undefined): T | null {
   if (!raw) return null
   try {

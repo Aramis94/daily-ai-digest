@@ -1,3 +1,6 @@
+// Meglévő hírek lefordítása az aktuális app nyelvre. Nem gyárt új hírt.
+// latestOnly igaz: csak a legutóbbi digest. Különben az utolsó 10.
+// A részletes cikket (detail) eldobja, hogy a régi nyelvű szöveg ne maradjon meg.
 import { NextResponse } from "next/server"
 import OpenAI from "openai"
 import { createClient } from "@/lib/supabase/server"
@@ -10,11 +13,12 @@ const groq = new OpenAI({
   timeout: 25_000,
 })
 
-type NewsItem = { title?: string; summary?: string; why?: string }
+type NewsItem = { title?: string; summary?: string; why?: string; theme?: string; themeKey?: string; detail?: { detailed?: string } }
 type Lesson = { word?: string; example?: string; explanation?: string }
 type Row = { id: string; news: { items?: NewsItem[] } | null; language_lesson: Lesson | null }
 type Translated = { id?: string; items?: NewsItem[]; explanation?: string }
 
+// A belépett felhasználó híreit fordítja. A cím, az összefoglaló és a miért mező megy a Groqhoz, a detail nem.
 export async function POST(request: Request) {
   if (!rateLimit(clientIp(request), 10, 60_000)) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 })

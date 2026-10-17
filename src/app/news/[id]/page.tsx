@@ -1,5 +1,9 @@
 "use client"
 
+// Egy hír hosszabb változata. Az URL-ben a hír sorszáma és a digest azonosítója van, a szöveg nincs.
+// Ha a hírön már van elmentett detail, azt olvassa. Ha nincs, a /api/news-detail végpont generálja és menti.
+
+
 import { Suspense, useEffect, useState } from "react"
 import { useParams, useSearchParams } from "next/navigation"
 import Link from "next/link"
@@ -9,6 +13,7 @@ import { translations } from "@/lib/translations"
 type Source = { name: string; url: string }
 type DetailView = { title: string; summary: string; detailed: string; sources: Source[] }
 
+// Csak https link mehet ki a források közül.
 function safeHttps(url: string) {
   try {
     const parsed = new URL(url)
@@ -31,6 +36,7 @@ function NewsDetailContent() {
   const t = translations[appLanguage as keyof typeof translations] || translations.hungarian
 
   useEffect(() => {
+    // Előbb a már elmentett cikket nézi. Ha nincs, a /api/news-detail generálja és menti.
     const load = async () => {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()

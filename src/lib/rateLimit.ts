@@ -1,5 +1,8 @@
+// Egyszerű korlát egy szerverpéldány memóriájában. IP-nként számolja a hívásokat egy időablakban.
+// Ha túl sok jön, az API 429-et ad. Újraindításkor a számláló nullázódik.
 const requests = new Map<string, number[]>()
 
+// false, ha az IP az ablakban már elérte a limitet. true, ha mehet a hívás.
 export function rateLimit(identifier: string, limit = 10, windowMs = 60_000) {
   const now = Date.now()
 

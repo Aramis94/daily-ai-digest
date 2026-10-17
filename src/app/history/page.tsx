@@ -1,5 +1,9 @@
 "use client"
 
+// Előzmények. Egy lekéréssel a legújabb 80 digestet hozza a daily_digests táblából.
+// A törlés gomb egy sort töröl, az összes törlése a felhasználó minden digestjét.
+
+
 import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
@@ -29,6 +33,7 @@ export default function HistoryPage() {
   const t = translations[appLanguage as keyof typeof translations] || translations.hungarian
 
   useEffect(() => {
+    // Nyelv a profilból, utána egyetlen lista: id, dátum, hírek, lecke, legfeljebb 80.
     const load = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
@@ -57,11 +62,13 @@ export default function HistoryPage() {
     load()
   }, [supabase, router])
 
+  // Egy digest törlése a daily_digests táblából, majd kivétel a listáról.
   async function removeDigest(id: string) {
     const { error } = await supabase.from("daily_digests").delete().eq("id", id)
     if (!error) setDigests((prev) => prev.filter((digest) => digest.id !== id))
   }
 
+  // Megerősítés után a felhasználó minden digestje törlődik. A profil és a pontok megmaradnak.
   async function deleteAllHistory() {
     if (!window.confirm(t.deleteAllConfirm)) return
     const { data: { user } } = await supabase.auth.getUser()

@@ -1,5 +1,9 @@
 'use client'
 
+// Belépés és regisztráció. A nyelv gomb a login_lang sütibe ment, és a profiles.language mezőbe is.
+// Sikeres belépés után a /api/translate-digests végpont lefordítja a legutóbbi hírt, majd a főoldalra lép.
+
+
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { translations } from '@/lib/translations'
@@ -7,12 +11,14 @@ import { translations } from '@/lib/translations'
 const languages = ['hungarian', 'english', 'german', 'spanish'] as const
 type AppLanguage = (typeof languages)[number]
 
+// A login_lang süti olvasása. Ismeretlen érték esetén magyar.
 function readLoginLanguage(): AppLanguage {
   const match = document.cookie.match(/(?:^|; )login_lang=([^;]+)/)
   const value = match?.[1]
   return languages.includes(value as AppLanguage) ? (value as AppLanguage) : 'hungarian'
 }
 
+// A választott nyelv egy évre a böngésző sütijébe kerül.
 function saveLoginLanguage(language: AppLanguage) {
   document.cookie = `login_lang=${language}; path=/; max-age=31536000; samesite=lax`
 }
@@ -33,11 +39,13 @@ export default function LoginPage() {
     document.title = t.appName
   }, [t.appName])
 
+  // Nyelvgomb: süti és a login feliratok azonnal váltanak, profil még nem.
   function chooseLanguage(language: AppLanguage) {
     saveLoginLanguage(language)
     setLang(language)
   }
 
+  // Belépés, nyelv mentése a profiles táblába, legutóbbi hír fordítása, majd teljes újratöltés a főoldalra.
   async function handleLogin() {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error || !data.user) {
@@ -71,6 +79,7 @@ export default function LoginPage() {
     window.location.href = '/'
   }
 
+  // Új fiók. Ha a Supabase azonnal ad felhasználót, a nyelvet is elmenti. Emailes megerősítés kellhet.
   async function handleSignUp() {
     const { data, error } = await supabase.auth.signUp({ email, password })
     if (error) {

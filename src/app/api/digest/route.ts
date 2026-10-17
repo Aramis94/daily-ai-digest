@@ -1,3 +1,6 @@
+// Hírgenerálás. POST: a bejelentkezett felhasználó gombja. GET: a Vercel napi cronja, titkos kulccsal.
+// A Groq három hírt ír, különböző kategóriából. Az eredmény a daily_digests táblába kerül.
+// Utána a 30 napnál régebbi és a 200 hír feletti legrégebbi sorok törlődnek. Ha az email be van kapcsolva, a Resend levelet küld.
 import { timingSafeEqual } from "crypto"
 import { NextResponse } from "next/server"
 import OpenAI from "openai"
@@ -41,6 +44,7 @@ type Query = {
   then: (resolve: (value: { data: StoredDigest[] | null }) => unknown) => Promise<unknown>
 }
 
+// A napi cron csak akkor mehet tovább, ha a kérés a CRON_SECRET kulcsot hozza.
 function isCron(request: Request) {
   const secret = process.env.CRON_SECRET
   const header = request.headers.get("authorization") ?? ""
@@ -52,6 +56,7 @@ function isCron(request: Request) {
   return timingSafeEqual(a, b)
 }
 
+// Cronhoz használt kliens. A service role kulccsal minden felhasználó digestjét elkészíti.
 function adminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -61,6 +66,7 @@ function adminClient() {
   })
 }
 
+// A levél tárgya és szövege a profil nyelve szerint.
 function emailCopy(language: string) {
   if (language === "Hungarian") {
     return {
@@ -94,6 +100,7 @@ function emailCopy(language: string) {
   }
 }
 
+// Az utolsó öt digest címei és kategóriái, hogy az új hír ne ismételje őket.
 async function recentContext(supabase: DigestDb, userId: string) {
   const { data } = await supabase
     .from("daily_digests")
@@ -119,6 +126,7 @@ async function recentContext(supabase: DigestDb, userId: string) {
   }
 }
 
+// Törli a 30 napnál régebbi sorokat, és ha 200-nál több hír van, a legrégebbieket.
 async function trimUserDigests(supabase: DigestDb, userId: string) {
   const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
   await supabase.from("daily_digests").delete().eq("user_id", userId).lt("created_at", cutoff)
@@ -144,6 +152,7 @@ async function trimUserDigests(supabase: DigestDb, userId: string) {
   }
 }
 
+// Groq hívás: három hír, három kategória. Mentés a daily_digests táblába, takarítás, majd opcionális email.
 async function generateForProfile(supabase: DigestDb, profile: Profile, email: string | null) {
   const customTopics = (profile.topics || [])
     .map((topic) => clampText(topic, 40))
@@ -232,6 +241,7 @@ Format as JSON: {"items": [{"title": "...", "summary": "...", "why": "...", "the
   return true
 }
 
+// Vercel cron, naponta 7:00 UTC. Végigmegy minden profilon, és mindegyiknek digestet készít.
 export async function GET(request: Request) {
   if (!isCron(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -264,6 +274,7 @@ export async function GET(request: Request) {
   return NextResponse.json({ ok, count: profiles.length })
 }
 
+// A főoldal vagy a beállítások gombja. Csak a belépett felhasználónak generál, percenként legfeljebb ötször.
 export async function POST(request: Request) {
   if (!rateLimit(clientIp(request), 5, 60_000)) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 })

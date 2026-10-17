@@ -1,3 +1,5 @@
+// Az összes felirat négy nyelven. A kulcs a profiles.language és a login választás: hungarian, english, german, spanish.
+// Ha a kulcs hiányzik, a lapok a magyar szövegre esnek vissza.
 export const translations = {
   hungarian: {
     appName: 'Tudás minden napra',

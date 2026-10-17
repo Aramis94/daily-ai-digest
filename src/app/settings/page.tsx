@@ -1,5 +1,10 @@
 'use client'
 
+// Beállítások. A profiles tábla nyelv, témák és email mezőit menti.
+// Mentés után mindig meghívja a /api/digest végpontot, tehát új híreket generál.
+// Az összes előzmény törlése csak a digesteket viszi. A profil visszaállítása a témákat és a pontokat is alapra teszi.
+
+
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -18,6 +23,7 @@ export default function SettingsPage() {
   const t = translations[language as keyof typeof translations] || translations.hungarian
 
   useEffect(() => {
+    // A mentett nyelv, témák és email kapcsoló betöltése.
     const loadProfile = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
@@ -41,6 +47,7 @@ export default function SettingsPage() {
     loadProfile()
   }, [supabase, router])
 
+  // Profil mentése, majd új digest generálása és az oldal újratöltése.
   const handleSave = async () => {
     setSaving(true)
     setMessage('')
@@ -71,6 +78,7 @@ export default function SettingsPage() {
     setSaving(false)
   }
 
+  // Csak az előzményeket törli. A témák és a kategóriapontok megmaradnak.
   const deleteAllHistory = async () => {
     if (!window.confirm(t.deleteAllConfirm)) return
     const { data: { user } } = await supabase.auth.getUser()
@@ -79,6 +87,7 @@ export default function SettingsPage() {
     setMessage(error ? error.message : t.historyEmpty)
   }
 
+  // Előzmények törlése, témák és pontok ürítése, tanulási nyelv magyar, szint A2. Az app nyelve marad.
   const resetProfile = async () => {
     if (!window.confirm(t.resetConfirm)) return
     const { data: { user } } = await supabase.auth.getUser()

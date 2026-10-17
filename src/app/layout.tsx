@@ -1,3 +1,6 @@
+// Az egész oldal kerete. Minden oldalon lefut.
+// Betölti a két betűt (Outfit a szöveghez, Fraunces a címekhez), a globális CSS-t és a menüt.
+// A metadata a böngészőfül alap címe, amíg egy kliensoldal át nem írja.
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
 import { Fraunces, Outfit } from 'next/font/google'
@@ -19,6 +22,8 @@ export const metadata: Metadata = {
   description: 'Napi hírek és nyelvtanulás',
 }
 
+
+// A menü külön tölt. Amíg nincs kész, egy üres sáv látszik, az oldal tartalma a children.
 export default function RootLayout({
   children,
 }: {

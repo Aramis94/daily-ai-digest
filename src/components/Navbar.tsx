@@ -1,5 +1,10 @@
 'use client'
 
+// Felső menü. Csak bejelentkezve látszik, a /login oldalon nem.
+// Oldalváltáskor lekéri a profiles.language mezőt, és arra fordítja a menüt.
+// A böngészőfül címét is az app nevére állítja.
+
+
 import { createClient } from '@/lib/supabase/client'
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -14,6 +19,7 @@ export default function Navbar() {
 
   const t = translations[appLanguage as keyof typeof translations] || translations.hungarian
 
+  // Oldalváltáskor újraolvassa a profiles.language mezőt.
   useEffect(() => {
     const loadLanguage = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -32,10 +38,12 @@ export default function Navbar() {
     loadLanguage()
   }, [pathname])
   
+  // A böngészőfül címe az aktuális nyelv appName szövege.
   useEffect(() => {
   document.title = t.appName
 }, [t.appName])
 
+  // Kijelentkezés: Supabase signOut, utána a login oldal.
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/login')

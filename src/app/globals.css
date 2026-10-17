@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+/* Az oldal alap színe, a két betű és a fókuszkeret. A Tailwind osztályok a komponensekben vannak. */
+
 html {
   background: #f3eee6;
 }

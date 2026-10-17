@@ -1,3 +1,5 @@
+// Next.js beállítás. A cacheComponents és a partialPrefetching a keretrendszer gyorsítótára.
+// A Tailwind a Turbopack CSS szabályán keresztül töltődik.
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {

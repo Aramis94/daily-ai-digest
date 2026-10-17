@@ -1,5 +1,10 @@
 'use client'
 
+// Főoldal. A legutóbbi digest híreit és a nyelvleckét mutatja.
+// Betöltéskor: Supabase getUser, profiles sor, majd a legújabb daily_digests sor.
+// A generálás a /api/digest végpontot hívja, a lecke a /api/lesson végpontot.
+
+
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
@@ -44,6 +49,7 @@ type DigestView = {
   lesson?: Lesson | null
 }
 
+// A mai dátum a böngésző nyelvén. A szerver üres szöveget ad, hogy a build ne hívja a dátumot.
 function todayLabel(language: string) {
   return new Date().toLocaleDateString(locales[language] || 'hu-HU', {
     weekday: 'long',
@@ -71,6 +77,7 @@ export default function Home() {
   )
 
   useEffect(() => {
+    // Belépés ellenőrzése, profil (nyelv, tanulás, pontok) és a legutóbbi digest.
     const loadLatest = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
@@ -111,6 +118,7 @@ export default function Home() {
     loadLatest()
   }, [supabase])
 
+  // A tanulási nyelv és a szint azonnal a profiles táblába megy. Új leckét ettől még nem gyárt.
   const updateLearning = async (newLang: string, newLevel: string) => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
@@ -124,6 +132,7 @@ export default function Home() {
     setLanguageLevel(newLevel)
   }
 
+  // Gyakrabban: +1, Ritkábban: -1. A pont -10 és 10 között marad, a profiles.topic_prefs mezőbe kerül.
   async function voteTheme(key: string, vote: 1 | -1) {
     const clean = key.trim().toLowerCase()
     if (!clean) return
@@ -134,6 +143,7 @@ export default function Home() {
     await supabase.from('profiles').update({ topic_prefs: next }).eq('id', user.id)
   }
 
+  // Új három hírt kér a /api/digest végponttól, majd a legutóbbi sort újraolvassa.
   const generate = async () => {
     setGenerating(true)
     const { data: { user } } = await supabase.auth.getUser()
@@ -158,6 +168,7 @@ export default function Home() {
     setGenerating(false)
   }
 
+  // Új szót kér a /api/lesson végponttól, és csak a leckét cseréli a képernyőn.
   const generateLesson = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
