@@ -12,6 +12,7 @@ import { createClient } from "@/lib/supabase/server"
 import { rateLimit } from "@/lib/rateLimit"
 import { clampText, clientIp, escapeHtml, languageName, parseModelJson } from "@/lib/text"
 import { loadRealArticles } from "@/lib/googleNews"
+import { feedbackPrompt, readPersonalization } from "@/lib/personalization"
 
 const groq = new OpenAI({
   apiKey: process.env.GROQ_API_KEY,
@@ -38,7 +39,7 @@ type Profile = {
   language: string | null
   topics: string[] | null
   email_notifications: boolean | null
-  topic_prefs: Record<string, number> | null
+  topic_prefs: Record<string, unknown> | null
 }
 type StoredDigest = { id: string; created_at?: string; news?: { items?: NewsItem[]; theme?: string; themeKey?: string } | null }
 type DigestDb = {
@@ -184,22 +185,42 @@ async function generateForProfile(supabase: DigestDb, profile: Profile, email: s
     .slice(0, 12)
   const recent = await recentContext(supabase, profile.id)
   const outputLanguage = languageName(profile.language)
+  const personal = readPersonalization(profile.topic_prefs)
+  const namedTopics = personal.interests.length
+    ? personal.interests.map((item) => item.topic)
+    : customTopics
+  const prefs = { ...personal.scores }
+  for (const interest of personal.interests) {
+    const key = interest.topic.toLowerCase()
+    prefs[key] = (prefs[key] || 0) + interest.weight
+  }
   const articles = await loadRealArticles(
     profile.language,
-    customTopics,
-    profile.topic_prefs || {},
+    namedTopics,
+    prefs,
     recent.categories,
     recent.titles,
+    personal.excluded,
   )
   if (articles.length === 0) return false
 
+  const depthOf = (theme: string, themeKey: string) => {
+    const match = personal.interests.find((item) => {
+      const name = item.topic.toLowerCase()
+      return name === theme.toLowerCase() || name === themeKey
+    })
+    return match?.level || "intermediate"
+  }
+
   const packed = articles.map((article, index) => (
-    `${index + 1}. Category: ${article.theme}\nTitle: ${article.title}\nSource: ${article.sourceName}\nText: ${article.excerpt || article.title}`
+    `${index + 1}. Category: ${article.theme}\nDepth: ${depthOf(article.theme, article.themeKey)}\nTitle: ${article.title}\nSource: ${article.sourceName}\nText: ${article.excerpt || article.title}`
   )).join("\n\n")
 
   const newsPrompt = `Summarize each real article between the markers.
 Write in ${outputLanguage}. Use only the facts in that article. Do not add sources or URLs.
+Depth beginner means plain words. intermediate means a normal reader. expert means precise terms.
 Keep the same order and the same number of items.
+${feedbackPrompt(personal.feedback)}
 <articles>
 ${packed}
 </articles>

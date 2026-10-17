@@ -12,6 +12,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { translations } from '@/lib/translations'
+import { readPersonalization, savePersonalization } from '@/lib/personalization'
 
 const locales: Record<string, string> = {
   hungarian: 'hu-HU',
@@ -73,6 +74,8 @@ export default function Home() {
   const [learningLanguage, setLearningLanguage] = useState('hungarian')
   const [languageLevel, setLanguageLevel] = useState('A2')
   const [prefs, setPrefs] = useState<Record<string, number>>({})
+  const [itemVotes, setItemVotes] = useState<Record<number, 1 | -1>>({})
+  const [reasonFor, setReasonFor] = useState<number | null>(null)
   const supabase = createClient()
   const t = translations[appLanguage as keyof typeof translations] || translations.hungarian
   const today = useSyncExternalStore(
@@ -100,7 +103,7 @@ export default function Home() {
         setAppLanguage(profile.language === 'spanish' ? 'hungarian' : (profile.language || 'hungarian'))
         setLearningLanguage(profile.learning_language === 'spanish' ? 'hungarian' : (profile.learning_language || 'hungarian'))
         setLanguageLevel(profile.language_level || 'A2')
-        setPrefs(profile.topic_prefs || {})
+        setPrefs(readPersonalization(profile.topic_prefs).scores)
       }
 
       const { data } = await supabase
@@ -143,9 +146,13 @@ export default function Home() {
     if (!clean) return
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
+    const { data: profile } = await supabase.from('profiles').select('topic_prefs').eq('id', user.id).single()
     const next = { ...prefs, [clean]: Math.max(-10, Math.min(10, (prefs[clean] || 0) + vote)) }
     setPrefs(next)
-    await supabase.from('profiles').update({ topic_prefs: next }).eq('id', user.id)
+    const personal = readPersonalization(profile?.topic_prefs)
+    await supabase.from('profiles').update({
+      topic_prefs: savePersonalization(profile?.topic_prefs, next, personal.interests, personal.excluded, personal.feedback),
+    }).eq('id', user.id)
   }
 
   async function toggleFavorite(index: number) {
@@ -156,6 +163,31 @@ export default function Home() {
     const news = { ...result.news, items }
     const { error } = await supabase.from('daily_digests').update({ news }).eq('id', result.id)
     if (!error) setResult({ ...result, news })
+  }
+
+  async function rateItem(index: number, vote: 1 | -1, reason = '') {
+    const item = result?.news?.items?.[index]
+    if (!item || itemVotes[index]) return
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { data: profile } = await supabase.from('profiles').select('topic_prefs').eq('id', user.id).single()
+    const personal = readPersonalization(profile?.topic_prefs)
+    const key = String(item.themeKey || item.theme || '').trim().toLowerCase()
+    const next = { ...prefs }
+    if (key) next[key] = Math.max(-10, Math.min(10, (prefs[key] || 0) + vote))
+    const feedback = [{
+      title: item.title || '',
+      theme: item.theme || '',
+      themeKey: key,
+      vote,
+      reason,
+    }, ...personal.feedback]
+    setPrefs(next)
+    setItemVotes((prev) => ({ ...prev, [index]: vote }))
+    setReasonFor(null)
+    await supabase.from('profiles').update({
+      topic_prefs: savePersonalization(profile?.topic_prefs, next, personal.interests, personal.excluded, feedback),
+    }).eq('id', user.id)
   }
 
   // Új három hírt kér a /api/digest végponttól, majd a legutóbbi sort újraolvassa.
@@ -295,6 +327,42 @@ export default function Home() {
                         >
                           {t.searchMore}
                         </a>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => rateItem(i, 1)}
+                        disabled={itemVotes[i] !== undefined}
+                        className={`rounded-full border px-3 py-1 text-sm ${itemVotes[i] === 1 ? 'border-[#0f6e6b] bg-[#f3faf8]' : 'border-[#e4d9c8] bg-white'}`}
+                      >
+                        {t.like}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setReasonFor(reasonFor === i ? null : i)}
+                        disabled={itemVotes[i] !== undefined}
+                        className={`rounded-full border px-3 py-1 text-sm ${itemVotes[i] === -1 ? 'border-[#c4552a] bg-[#fff7f3]' : 'border-[#e4d9c8] bg-white'}`}
+                      >
+                        {t.dislike}
+                      </button>
+                      {reasonFor === i && (
+                        <span className="flex flex-wrap gap-2">
+                          {([
+                            ['tooLong', t.reasonLong],
+                            ['alreadyKnew', t.reasonKnown],
+                            ['irrelevant', t.reasonIrrelevant],
+                            ['badLanguage', t.reasonLanguage],
+                            ['tooTechnical', t.reasonTechnical],
+                          ] as const).map(([reason, label]) => (
+                            <button
+                              key={reason}
+                              type="button"
+                              onClick={() => rateItem(i, -1, reason)}
+                              className="rounded-full bg-[#f3eee6] px-3 py-1 text-sm"
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </span>
                       )}
                       {theme && (
                         <span className="rounded-full bg-[#f3e4d8] px-3 py-1 text-sm text-[#8a4b32]">

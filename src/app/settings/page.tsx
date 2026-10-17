@@ -11,16 +11,22 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { translations } from '@/lib/translations'
+import { interestsFromTopics, readPersonalization, savePersonalization, type Interest, type Level } from '@/lib/personalization'
 
 export default function SettingsPage() {
   const [language, setLanguage] = useState('hungarian')
-  const [topics, setTopics] = useState('')
+  const [interests, setInterests] = useState<Interest[]>([])
+  const [excluded, setExcluded] = useState<string[]>([])
+  const [draftTopic, setDraftTopic] = useState('')
+  const [draftLevel, setDraftLevel] = useState<Level>('intermediate')
+  const [draftWeight, setDraftWeight] = useState<1 | 2 | 3>(2)
+  const [draftExcluded, setDraftExcluded] = useState('')
   const [emailNotifications, setEmailNotifications] = useState(true)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [savedLanguage, setSavedLanguage] = useState('hungarian')
-  const [savedTopics, setSavedTopics] = useState('')
+  const [savedKey, setSavedKey] = useState('')
   const supabase = createClient()
   const router = useRouter()
 
@@ -37,17 +43,19 @@ export default function SettingsPage() {
 
       const { data } = await supabase
         .from('profiles')
-        .select('language, topics, email_notifications')
+        .select('language, topics, email_notifications, topic_prefs')
         .eq('id', user.id)
         .single()
 
       if (data) {
         const nextLanguage = data.language === 'spanish' ? 'hungarian' : (data.language || 'hungarian')
-        const nextTopics = (data.topics || []).join(', ')
+        const personal = readPersonalization(data.topic_prefs)
+        const nextInterests = personal.interests.length ? personal.interests : interestsFromTopics(data.topics)
         setLanguage(nextLanguage)
         setSavedLanguage(nextLanguage)
-        setTopics(nextTopics)
-        setSavedTopics(nextTopics)
+        setInterests(nextInterests)
+        setExcluded(personal.excluded)
+        setSavedKey(JSON.stringify({ interests: nextInterests, excluded: personal.excluded }))
         setEmailNotifications(data.email_notifications ?? true)
       }
       setLoading(false)
@@ -65,20 +73,21 @@ export default function SettingsPage() {
       return
     }
 
-    const topicsArray = topics
-      .split(',')
-      .map(topic => topic.trim())
-      .filter(topic => topic.length > 0)
-      .slice(0, 12)
-    const topicsText = topicsArray.join(', ')
-    const contentChanged = language !== savedLanguage || topicsText !== savedTopics
+    const contentChanged = language !== savedLanguage || JSON.stringify({ interests, excluded }) !== savedKey
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('topic_prefs')
+      .eq('id', user.id)
+      .single()
+    const personal = readPersonalization(profile?.topic_prefs)
 
     const { error } = await supabase
       .from('profiles')
       .update({
         language,
-        topics: topicsArray,
-        email_notifications: emailNotifications
+        topics: interests.map((item) => item.topic),
+        email_notifications: emailNotifications,
+        topic_prefs: savePersonalization(profile?.topic_prefs, personal.scores, interests, excluded, personal.feedback),
       })
       .eq('id', user.id)
 
@@ -163,13 +172,96 @@ export default function SettingsPage() {
 
         <div>
           <label className="mb-1.5 block text-sm font-medium text-[#5e574e]">{t.topics}</label>
-          <input
-            type="text"
-            value={topics}
-            onChange={(e) => setTopics(e.target.value)}
-            placeholder="AI, tech, science, sport"
-            className="w-full rounded-xl border border-[#e4d9c8] bg-white px-3 py-2.5"
-          />
+          <div className="space-y-2">
+            {interests.map((item) => (
+              <div key={item.topic} className="flex flex-wrap items-center gap-2">
+                <span className="min-w-24 flex-1 text-sm">{item.topic}</span>
+                <select
+                  value={item.level}
+                  onChange={(e) => setInterests((prev) => prev.map((row) => row.topic === item.topic ? { ...row, level: e.target.value as Level } : row))}
+                  className="rounded-xl border border-[#e4d9c8] bg-white px-2 py-1.5 text-sm"
+                >
+                  <option value="beginner">{t.beginner}</option>
+                  <option value="intermediate">{t.intermediate}</option>
+                  <option value="expert">{t.expert}</option>
+                </select>
+                <select
+                  value={item.weight}
+                  onChange={(e) => setInterests((prev) => prev.map((row) => row.topic === item.topic ? { ...row, weight: Number(e.target.value) as 1 | 2 | 3 } : row))}
+                  className="rounded-xl border border-[#e4d9c8] bg-white px-2 py-1.5 text-sm"
+                >
+                  <option value={1}>{t.weightLow}</option>
+                  <option value={2}>{t.weightMid}</option>
+                  <option value={3}>{t.weightHigh}</option>
+                </select>
+                <button type="button" onClick={() => setInterests((prev) => prev.filter((row) => row.topic !== item.topic))} className="text-sm text-[#8a4b32]">
+                  {t.remove}
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <input
+              type="text"
+              value={draftTopic}
+              onChange={(e) => setDraftTopic(e.target.value)}
+              placeholder={t.addTopic}
+              className="min-w-32 flex-1 rounded-xl border border-[#e4d9c8] bg-white px-3 py-2 text-sm"
+            />
+            <select value={draftLevel} onChange={(e) => setDraftLevel(e.target.value as Level)} className="rounded-xl border border-[#e4d9c8] bg-white px-2 py-2 text-sm">
+              <option value="beginner">{t.beginner}</option>
+              <option value="intermediate">{t.intermediate}</option>
+              <option value="expert">{t.expert}</option>
+            </select>
+            <select value={draftWeight} onChange={(e) => setDraftWeight(Number(e.target.value) as 1 | 2 | 3)} className="rounded-xl border border-[#e4d9c8] bg-white px-2 py-2 text-sm">
+              <option value={1}>{t.weightLow}</option>
+              <option value={2}>{t.weightMid}</option>
+              <option value={3}>{t.weightHigh}</option>
+            </select>
+            <button
+              type="button"
+              onClick={() => {
+                const topic = draftTopic.trim().slice(0, 40)
+                if (!topic || interests.some((item) => item.topic.toLowerCase() === topic.toLowerCase()) || interests.length >= 12) return
+                setInterests((prev) => [...prev, { topic, level: draftLevel, weight: draftWeight }])
+                setDraftTopic('')
+              }}
+              className="rounded-full border border-[#e4d9c8] bg-white px-3 py-2 text-sm"
+            >
+              {t.addTopic}
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-[#5e574e]">{t.excluded}</label>
+          <div className="mb-2 flex flex-wrap gap-2">
+            {excluded.map((item) => (
+              <button key={item} type="button" onClick={() => setExcluded((prev) => prev.filter((row) => row !== item))} className="rounded-full bg-[#f3e4d8] px-3 py-1 text-sm text-[#8a4b32]">
+                {item} ×
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={draftExcluded}
+              onChange={(e) => setDraftExcluded(e.target.value)}
+              className="flex-1 rounded-xl border border-[#e4d9c8] bg-white px-3 py-2 text-sm"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const topic = draftExcluded.trim().slice(0, 40)
+                if (!topic || excluded.some((item) => item.toLowerCase() === topic.toLowerCase())) return
+                setExcluded((prev) => [...prev, topic].slice(0, 12))
+                setDraftExcluded('')
+              }}
+              className="rounded-full border border-[#e4d9c8] bg-white px-3 py-2 text-sm"
+            >
+              {t.addTopic}
+            </button>
+          </div>
         </div>
 
         <label className="flex items-start gap-3 rounded-2xl bg-[#f3eee6] px-4 py-3">

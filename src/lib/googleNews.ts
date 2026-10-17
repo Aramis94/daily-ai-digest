@@ -113,8 +113,18 @@ async function fetchFeed(query: string, language: string | null) {
   return parseGoogleNews(await response.text())
 }
 
-function topicChoices(language: string | null, topics: string[], prefs: Record<string, number>, recent: string[]) {
+function topicChoices(
+  language: string | null,
+  topics: string[],
+  prefs: Record<string, number>,
+  recent: string[],
+  excluded: string[],
+) {
   const recentSet = new Set(recent)
+  const blocked = (key: string, query: string) => excluded.some((word) => {
+    const clean = word.toLowerCase()
+    return clean && (`${key} ${query}`.toLowerCase().includes(clean))
+  })
   const custom = topics.map((topic) => ({
     key: topic.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "topic",
     query: topic,
@@ -128,9 +138,12 @@ function topicChoices(language: string | null, topics: string[], prefs: Record<s
     score: prefs[topic.key] || 0,
   }))
   const rows = (custom.length ? custom : pool)
+    .filter((topic) => !blocked(topic.key, topic.query))
     .filter((topic) => topic.score > 0 || !recentSet.has(topic.key))
     .sort((a, b) => b.score - a.score || Math.random() - 0.5)
-  const fallback = pool.sort((a, b) => b.score - a.score || Math.random() - 0.5)
+  const fallback = pool
+    .filter((topic) => !blocked(topic.key, topic.query))
+    .sort((a, b) => b.score - a.score || Math.random() - 0.5)
   const chosen = []
   const seen = new Set<string>()
   for (const topic of [...rows, ...fallback]) {
@@ -147,10 +160,11 @@ export async function loadRealArticles(
   prefs: Record<string, number>,
   recentCategories: string[],
   recentTitles: string[],
+  excluded: string[] = [],
 ) {
   const seenTitles = new Set(recentTitles.map((title) => title.toLowerCase()))
   const articles: RealArticle[] = []
-  const feeds = await Promise.all(topicChoices(language, topics, prefs, recentCategories).map(async (topic) => ({
+  const feeds = await Promise.all(topicChoices(language, topics, prefs, recentCategories, excluded).map(async (topic) => ({
     topic,
     items: await fetchFeed(topic.query, language).catch(() => []),
   })))
