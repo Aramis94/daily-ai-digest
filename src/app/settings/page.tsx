@@ -40,7 +40,7 @@ export default function SettingsPage() {
         .single()
 
       if (data) {
-        setLanguage(data.language || 'hungarian')
+        setLanguage(data.language === 'spanish' ? 'hungarian' : (data.language || 'hungarian'))
         setTopics((data.topics || []).join(', '))
         setEmailNotifications(data.email_notifications ?? true)
       }
@@ -138,7 +138,6 @@ export default function SettingsPage() {
             <option value="hungarian">Magyar</option>
             <option value="english">English</option>
             <option value="german">Deutsch</option>
-            <option value="spanish">Español</option>
           </select>
         </div>
 

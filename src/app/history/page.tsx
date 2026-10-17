@@ -15,7 +15,6 @@ const locales: Record<string, string> = {
   hungarian: "hu-HU",
   english: "en-US",
   german: "de-DE",
-  spanish: "es-ES",
 }
 
 type HistoryNews = { title?: string; summary?: string; theme?: string }

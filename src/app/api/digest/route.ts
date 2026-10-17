@@ -86,14 +86,6 @@ function emailCopy(language: string) {
       button: "Den vollständigen Digest ansehen",
     }
   }
-  if (language === "Spanish") {
-    return {
-      subject: "Tu Tudás minden napra está listo",
-      intro: "Tu resumen de hoy está listo sobre estos temas:",
-      news: "Titulares",
-      button: "Ver el resumen completo",
-    }
-  }
   return {
     subject: "Your Tudás minden napra is ready",
     intro: "Today's digest is ready for these topics:",

@@ -17,14 +17,12 @@ const locales: Record<string, string> = {
   hungarian: 'hu-HU',
   english: 'en-US',
   german: 'de-DE',
-  spanish: 'es-ES',
 }
 
 const languages = [
   ['hungarian', 'Magyar'],
   ['english', 'Angol'],
   ['german', 'Német'],
-  ['spanish', 'Spanyol'],
   ['french', 'Francia'],
   ['italian', 'Olasz'],
   ['japanese', 'Japán'],
@@ -95,8 +93,8 @@ export default function Home() {
         .single()
 
       if (profile) {
-        setAppLanguage(profile.language || 'hungarian')
-        setLearningLanguage(profile.learning_language || 'hungarian')
+        setAppLanguage(profile.language === 'spanish' ? 'hungarian' : (profile.language || 'hungarian'))
+        setLearningLanguage(profile.learning_language === 'spanish' ? 'hungarian' : (profile.learning_language || 'hungarian'))
         setLanguageLevel(profile.language_level || 'A2')
         setPrefs(profile.topic_prefs || {})
       }

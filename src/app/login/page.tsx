@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { translations } from '@/lib/translations'
 
-const languages = ['hungarian', 'english', 'german', 'spanish'] as const
+const languages = ['hungarian', 'english', 'german'] as const
 type AppLanguage = (typeof languages)[number]
 
 // A login_lang süti olvasása. Ismeretlen érték esetén magyar.
@@ -119,7 +119,7 @@ export default function LoginPage() {
                       : 'text-[#5e574e] hover:text-[#1c1915]'
                   }`}
                 >
-                  {code === 'hungarian' ? 'HU' : code === 'english' ? 'EN' : code === 'german' ? 'DE' : 'ES'}
+                  {code === 'hungarian' ? 'HU' : code === 'english' ? 'EN' : 'DE'}
                 </button>
               ))}
             </div>

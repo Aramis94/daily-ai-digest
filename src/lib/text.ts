@@ -9,7 +9,6 @@ const LANGUAGE_NAMES: Record<string, string> = {
   hungarian: "Hungarian",
   english: "English",
   german: "German",
-  spanish: "Spanish",
   french: "French",
   italian: "Italian",
   portuguese: "Portuguese",
