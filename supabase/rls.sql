@@ -3,6 +3,7 @@
 -- A napi cron a service role kulccsal fut, az ezeket a szabályokat megkerüli.
 -- Own-row access for the app. Service role (cron) bypasses RLS.
 -- Run once in the Supabase SQL editor. Safe to re-run.
+-- Ezt nem hívja a weboldal. Kézzel kell lefuttatni a Supabase SQL szerkesztőben.
 
 -- Saját profil olvasása, létrehozása és módosítása.
 alter table public.profiles enable row level security;

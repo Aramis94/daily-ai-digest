@@ -1,5 +1,7 @@
 // Hosszabb cikk egy hírhez. A digestet és a hír sorszámát kapja, a címet az adatbázisból olvassa.
 // Ha már van detail, azt adja vissza Groq nélkül. Különben generál, és visszaírja a hír detail mezőjébe.
+// Ezt hívja: src/lib/supabase/server.ts, src/lib/rateLimit.ts, src/lib/text.ts és a Groq.
+// Ezt hívja meg: src/app/news/[id]/page.tsx, ha a cikk még nincs elmentve.
 import { NextResponse } from "next/server"
 import OpenAI from "openai"
 import { createClient } from "@/lib/supabase/server"

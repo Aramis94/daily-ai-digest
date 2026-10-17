@@ -1,5 +1,7 @@
 // Új nyelvlecke. A profiles tanulási nyelvét és szintjét olvassa, a Groq egy szót és példát ad.
 // A legutóbbi digest language_lesson mezőjébe menti. Ha még nincs digest, üres hírrel létrehoz egyet.
+// Ezt hívja: src/lib/supabase/server.ts, src/lib/rateLimit.ts, src/lib/text.ts és a Groq.
+// Ezt hívja meg: src/app/page.tsx, az új lecke gombja.
 import { NextResponse } from "next/server"
 import OpenAI from "openai"
 import { createClient } from "@/lib/supabase/server"

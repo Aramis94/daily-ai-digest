@@ -1,6 +1,8 @@
 // Meglévő hírek lefordítása az aktuális app nyelvre. Nem gyárt új hírt.
 // latestOnly igaz: csak a legutóbbi digest. Különben az utolsó 10.
 // A részletes cikket (detail) eldobja, hogy a régi nyelvű szöveg ne maradjon meg.
+// Ezt hívja: src/lib/supabase/server.ts, src/lib/rateLimit.ts, src/lib/text.ts és a Groq.
+// Ezt hívja meg: src/app/login/page.tsx belépés után.
 import { NextResponse } from "next/server"
 import OpenAI from "openai"
 import { createClient } from "@/lib/supabase/server"

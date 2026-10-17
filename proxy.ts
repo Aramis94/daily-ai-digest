@@ -1,5 +1,7 @@
 // Minden oldalkérés előtt fut. Frissíti a Supabase sütit, és belépés nélkül a /login oldalra küld.
 // A /login, /auth és /api útvonalak nyilvánosak maradnak.
+// Ezt hívja: közvetlenül a Supabase szerver klienst, nem a src/lib/supabase/server.ts fájlt.
+// Ezt hívja meg: a Next.js minden oldal- és API-kérés előtt, a fájl alján lévő matcher szerint.
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 

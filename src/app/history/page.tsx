@@ -2,6 +2,8 @@
 
 // Előzmények. Egy lekéréssel a legújabb 80 digestet hozza a daily_digests táblából.
 // A törlés gomb egy sort töröl, az összes törlése a felhasználó minden digestjét.
+// Ezt hívja: src/lib/supabase/client.ts és src/lib/translations.ts. API végpontot nem hív.
+// Ezt hívja meg: a menü Előzmények linkje.
 
 
 import { useEffect, useState } from "react"

@@ -1,4 +1,5 @@
 // Szerveres Supabase kliens az API végpontokhoz. A belépési sütit olvassa, így tudja, ki a felhasználó.
+// Ezt hívja meg: az api/digest, api/lesson, api/news-detail, api/translate-digests és az auth/callback.
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 

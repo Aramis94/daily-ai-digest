@@ -4,6 +4,7 @@
 // escapeHtml: emailbe tett szöveg, hogy ne lehessen HTML-t injektálni.
 // clientIp: a korláthoz használt IP. safeNextPath: csak saját oldali átirányítást enged.
 // safeHttpsUrl: csak sima https linket enged a forrásoknál. parseModelJson: a Groq JSON válaszát olvassa.
+// Ezt hívja meg: api/digest, api/lesson, api/news-detail, api/translate-digests és az auth/callback.
 const LANGUAGE_NAMES: Record<string, string> = {
   hungarian: "Hungarian",
   english: "English",

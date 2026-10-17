@@ -3,6 +3,8 @@
 // Felső menü. Csak bejelentkezve látszik, a /login oldalon nem.
 // Oldalváltáskor lekéri a profiles.language mezőt, és arra fordítja a menüt.
 // A böngészőfül címét is az app nevére állítja.
+// Ezt hívja: src/lib/supabase/client.ts (profiles.language) és src/lib/translations.ts.
+// Ezt hívja meg: src/app/layout.tsx. API végpontot nem hív.
 
 
 import { createClient } from '@/lib/supabase/client'

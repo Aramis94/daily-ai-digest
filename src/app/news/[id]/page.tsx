@@ -2,6 +2,8 @@
 
 // Egy hír hosszabb változata. Az URL-ben a hír sorszáma és a digest azonosítója van, a szöveg nincs.
 // Ha a hírön már van elmentett detail, azt olvassa. Ha nincs, a /api/news-detail végpont generálja és menti.
+// Ezt hívja: src/lib/supabase/client.ts, src/lib/translations.ts és POST /api/news-detail.
+// Ezt hívja meg: a főoldal Többet erről linkje.
 
 
 import { Suspense, useEffect, useState } from "react"

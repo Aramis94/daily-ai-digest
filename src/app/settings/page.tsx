@@ -3,6 +3,8 @@
 // Beállítások. A profiles tábla nyelv, témák és email mezőit menti.
 // Mentés után mindig meghívja a /api/digest végpontot, tehát új híreket generál.
 // Az összes előzmény törlése csak a digesteket viszi. A profil visszaállítása a témákat és a pontokat is alapra teszi.
+// Ezt hívja: src/lib/supabase/client.ts, src/lib/translations.ts és POST /api/digest.
+// Ezt hívja meg: a menü Beállítások linkje.
 
 
 import { useEffect, useState } from 'react'

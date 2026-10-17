@@ -2,6 +2,8 @@
 
 // Belépés és regisztráció. A nyelv gomb a login_lang sütibe ment, és a profiles.language mezőbe is.
 // Sikeres belépés után a /api/translate-digests végpont lefordítja a legutóbbi hírt, majd a főoldalra lép.
+// Ezt hívja: src/lib/supabase/client.ts, src/lib/translations.ts, POST /api/translate-digests.
+// Ezt hívja meg: a proxy.ts, ha nincs belépve, és a Navbar kijelentkezése.
 
 
 import { useEffect, useState } from 'react'

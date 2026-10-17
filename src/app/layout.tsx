@@ -1,6 +1,8 @@
 // Az egész oldal kerete. Minden oldalon lefut.
 // Betölti a két betűt (Outfit a szöveghez, Fraunces a címekhez), a globális CSS-t és a menüt.
 // A metadata a böngészőfül alap címe, amíg egy kliensoldal át nem írja.
+// Ezt hívja: src/components/Navbar.tsx és src/app/globals.css.
+// Ezt hívja meg: a Next.js minden oldalra, mert ez a közös keret.
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
 import { Fraunces, Outfit } from 'next/font/google'

@@ -1,6 +1,8 @@
 // Hírgenerálás. POST: a bejelentkezett felhasználó gombja. GET: a Vercel napi cronja, titkos kulccsal.
 // A Groq három hírt ír, különböző kategóriából. Az eredmény a daily_digests táblába kerül.
 // Utána a 30 napnál régebbi és a 200 hír feletti legrégebbi sorok törlődnek. Ha az email be van kapcsolva, a Resend levelet küld.
+// Ezt hívja: src/lib/supabase/server.ts, src/lib/rateLimit.ts, src/lib/text.ts, a Groq és a Resend.
+// Ezt hívja meg: src/app/page.tsx generálógombja, src/app/settings/page.tsx mentése, és a vercel.json napi cronja (GET).
 import { timingSafeEqual } from "crypto"
 import { NextResponse } from "next/server"
 import OpenAI from "openai"

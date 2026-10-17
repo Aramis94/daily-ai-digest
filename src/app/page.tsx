@@ -3,6 +3,9 @@
 // Főoldal. A legutóbbi digest híreit és a nyelvleckét mutatja.
 // Betöltéskor: Supabase getUser, profiles sor, majd a legújabb daily_digests sor.
 // A generálás a /api/digest végpontot hívja, a lecke a /api/lesson végpontot.
+// Ezt hívja: src/lib/supabase/client.ts, src/lib/translations.ts, POST /api/digest, POST /api/lesson.
+// A Többet erről link a src/app/news/[id]/page.tsx oldalra visz.
+// Ezt hívja meg: a / útvonal, a menü Főoldal linkje.
 
 
 import { useEffect, useState, useSyncExternalStore } from 'react'

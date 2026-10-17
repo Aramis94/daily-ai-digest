@@ -1,5 +1,7 @@
 // Supabase email-visszaigazolás fogadója. A kapott kódot munkamenetté cseréli, majd a next címre küld.
 // Hibánál a /login?error=auth oldalra visz.
+// Ezt hívja: src/lib/supabase/server.ts és src/lib/text.ts safeNextPath függvényét.
+// Ezt hívja meg: a Supabase visszaigazoló emailje, a /auth/callback címen.
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { safeNextPath } from "@/lib/text"
