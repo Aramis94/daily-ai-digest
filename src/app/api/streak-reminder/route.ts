@@ -5,7 +5,7 @@ import { timingSafeEqual } from "crypto"
 import { NextResponse } from "next/server"
 import { Resend } from "resend"
 import { createClient as createAdminClient } from "@supabase/supabase-js"
-import { budapestDate } from "@/lib/streak"
+import { budapestDate, dayCounts, readActivity } from "@/lib/streak"
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -35,18 +35,12 @@ export async function GET(request: Request) {
 
   const supabase = createAdminClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
   const today = budapestDate()
-  const { data: profiles } = await supabase.from("profiles").select("id, language, email_notifications").eq("email_notifications", true)
+  const { data: profiles } = await supabase.from("profiles").select("id, language, email_notifications, topic_prefs").eq("email_notifications", true)
   let sent = 0
 
   for (const profile of profiles || []) {
-    const { data: activity } = await supabase
-      .from("user_activity")
-      .select("did_view_digest, did_complete_lesson, frozen")
-      .eq("user_id", profile.id)
-      .eq("activity_date", today)
-      .maybeSingle()
-
-    if (activity && (activity.did_view_digest || activity.did_complete_lesson || activity.frozen)) continue
+    const todayRow = readActivity(profile.topic_prefs).find((row) => row.activity_date === today)
+    if (dayCounts(todayRow, "any")) continue
 
     const { data: userData } = await supabase.auth.admin.getUserById(profile.id)
     const email = userData?.user?.email

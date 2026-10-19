@@ -57,12 +57,14 @@ export function savePersonalization(
   feedback: Feedback[],
 ) {
   const current = readPersonalization(raw)
+  const activity = raw && typeof raw === "object" ? (raw as Record<string, unknown>).__activity : undefined
   return {
     ...current.scores,
     ...scores,
     __interests: interests.slice(0, 12),
     __excluded: excluded.map((item) => clampText(item, 40)).filter(Boolean).slice(0, 12),
     __feedback: (feedback.length ? feedback : current.feedback).slice(0, 30),
+    ...(activity ? { __activity: activity } : {}),
   }
 }
 

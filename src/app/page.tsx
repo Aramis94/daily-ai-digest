@@ -13,7 +13,7 @@ import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { translations } from '@/lib/translations'
 import { readPersonalization, savePersonalization } from '@/lib/personalization'
-import { addDays, countStreak, dayCounts, freezesUsed, localDate, weekCount, type Activity } from '@/lib/streak'
+import { countStreak, freezesUsed, localDate, readActivity, saveActivity, weekCount, withFreeze, withToday } from '@/lib/streak'
 
 const locales: Record<string, string> = {
   hungarian: 'hu-HU',
@@ -87,32 +87,10 @@ export default function Home() {
   const supabase = createClient()
   const t = translations[appLanguage as keyof typeof translations] || translations.hungarian
 
-  async function refreshStreak(userId: string) {
+  async function showStreak(raw: unknown) {
     const today = localDate()
-    const { data, error } = await supabase
-      .from('user_activity')
-      .select('activity_date, did_view_digest, did_complete_lesson, frozen')
-      .eq('user_id', userId)
-      .gte('activity_date', addDays(today, -60))
-    if (error || !data) return
-
-    let rows = data as Activity[]
-    const byDate = new Map(rows.map((row) => [row.activity_date, row]))
-    const yesterday = addDays(today, -1)
-    const before = addDays(today, -2)
-    if (!dayCounts(byDate.get(yesterday), 'any') && dayCounts(byDate.get(before), 'any') && freezesUsed(rows, today) < 2) {
-      const { error: freezeError } = await supabase.from('user_activity').insert({
-        user_id: userId,
-        activity_date: yesterday,
-        did_view_digest: false,
-        did_complete_lesson: false,
-        frozen: true,
-      })
-      if (!freezeError) {
-        rows = [...rows, { activity_date: yesterday, did_view_digest: false, did_complete_lesson: false, frozen: true }]
-      }
-    }
-
+    const frozen = withFreeze(readActivity(raw), today)
+    const rows = frozen.rows
     const todayRow = rows.find((row) => row.activity_date === today)
     setStreak(countStreak(rows, today, 'any'))
     setLessonStreak(countStreak(rows, today, 'lesson'))
@@ -120,23 +98,21 @@ export default function Home() {
     setFreezesLeft(Math.max(0, 2 - freezesUsed(rows, today)))
     setTodayView(Boolean(todayRow?.did_view_digest))
     setTodayLesson(Boolean(todayRow?.did_complete_lesson))
+    return frozen.changed ? saveActivity(raw, rows) : null
+  }
+
+  async function refreshStreak(userId: string) {
+    const { data } = await supabase.from('profiles').select('topic_prefs').eq('id', userId).single()
+    const next = await showStreak(data?.topic_prefs)
+    if (next) await supabase.from('profiles').update({ topic_prefs: next }).eq('id', userId)
   }
 
   async function markActivity(userId: string, flag: 'did_view_digest' | 'did_complete_lesson') {
+    const { data } = await supabase.from('profiles').select('topic_prefs').eq('id', userId).single()
     const today = localDate()
-    const { data } = await supabase
-      .from('user_activity')
-      .select('id, did_view_digest, did_complete_lesson')
-      .eq('user_id', userId)
-      .eq('activity_date', today)
-      .maybeSingle()
-
-    if (!data) {
-      await supabase.from('user_activity').insert({ user_id: userId, activity_date: today, [flag]: true })
-    } else if (!data[flag]) {
-      await supabase.from('user_activity').update({ [flag]: true }).eq('id', data.id)
-    }
-    await refreshStreak(userId)
+    const saved = saveActivity(data?.topic_prefs, withToday(readActivity(data?.topic_prefs), today, flag))
+    const next = await showStreak(saved) || saved
+    await supabase.from('profiles').update({ topic_prefs: next }).eq('id', userId)
   }
 
   const today = useSyncExternalStore(
